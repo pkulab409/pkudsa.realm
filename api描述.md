@@ -23,6 +23,7 @@ class Board:
     def __init__(self):
         self.layout = [[0]*8 for _ in range(8)]  # 棋盘8*8嵌套列表
         self.my_side = "W"  # W方，或者"E"为E方
+        self.my_storage = dict()  # 跨turn存储，字典
         self.total_turn = 60  # 总轮数
         self.turn_number = 0  # 当前轮次序号，首轮为0
         self.point = {"W":0, "E":0}  # 当前得分
