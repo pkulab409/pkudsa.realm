@@ -14,7 +14,7 @@
 ```python
 def play(board):  # 根据当前棋局，经过决策，返回动作
     ...
-    return list_action  # 返回动作列表，下标0/1/2对应三个士兵
+    return list_action  # 返回动作列表，下标0/1/2对应骑兵 弓兵 步兵
 ```
 
 ## 棋盘类Board
@@ -26,17 +26,17 @@ class Board:
         self.my_storage = dict()  # 跨turn存储，字典
         self.total_turn = 60  # 总轮数
         self.turn_number = 0  # 当前轮次序号，首轮为0
-        self.point = {"W":0, "E":0}  # 当前得分
         self.action_history = []  # 行动历史，下标为轮次，值为list_action
 ```
 
 ## 动作类Action
 - op是指令，分为move/attack
 - dx,dy表示指令目标的坐标偏移值（+-）
+- 已死亡棋子或本轮次不移动的棋子使用None返回，不使用该Action类
 ```python
 from collections import namedtuple
 Action = namedtuple("Action", "op dx dy")
 list_action = [Action(op="move", dx=0, dy=0), 
-               Action(op="attack", dx=0, dy=1),
+               None,
                Action(op="attack", dx=1, dy=1)]
 ```
