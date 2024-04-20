@@ -38,7 +38,7 @@ def gambler_bot(board):
                     elif side == 'E' and action.dx + action.dy < current_action.dx + current_action.dy:
                         current_action = action
         results.append(current_action)
-        layout = do_in_turn_action(layout, side, name=get_chess_datas()[i].name, action=current_action)
+        layout = do_in_turn_action(layout, side, name=chess_name_tuple[i], action=current_action)
     return results
 
 
@@ -165,6 +165,59 @@ def alpha_beta_under_time_limit_bot(board):
         raise
 
 
+def improved_alpha_beta_bot(board):
+    # 改进后的alpha-beta剪枝算法
+    max_depth = 9
+    side = board.my_side
+    reverse_side = lambda x: 'W' if x == 'E' else 'E'
+    get_side_by_depth = lambda d: side if (d // 3) % 2 == 0 else reverse_side(side)
+
+    def evaluate(layout) -> float:
+        dic = calculate_hp_sum(layout)
+        return dic[side] - dic[reverse_side(side)]
+
+    def helper(layout, depth, *, alpha, beta):
+        if is_terminal(layout) or depth == max_depth:
+            return evaluate(layout), []
+        current_side = get_side_by_depth(depth)
+        if current_side == side:
+            value, big_actions = float('-inf'), []
+            gen = generate_legal_successors(layout, current_side)[depth % 3]
+            for action in gen:
+                new_layout = do_in_turn_action(layout, current_side, name=chess_name_tuple[depth % 3], action=action,
+                                               use_copy=True)
+                if depth % 3 == 2:
+                    new_layout = do_after_turn(new_layout)
+                new_value, old_list = helper(new_layout, depth + 1, alpha=alpha, beta=beta)
+                if new_value > value:
+                    value, big_actions = new_value, old_list + [action]
+                if value >= beta:
+                    return value, big_actions
+                alpha = max(alpha, value)
+            return value, big_actions
+        else:
+            value, big_actions = float('inf'), []
+            gen = generate_legal_successors(layout, current_side)[depth % 3]
+            for action in gen:
+                new_layout = do_in_turn_action(layout, current_side, name=chess_name_tuple[depth % 3], action=action,
+                                               use_copy=True)
+                if depth % 3 == 2:
+                    new_layout = do_after_turn(new_layout)
+                new_value, old_list = helper(new_layout, depth + 1, alpha=alpha, beta=beta)
+                if new_value < value:
+                    value, big_actions = new_value, old_list + [action]
+                if value <= alpha:
+                    return value, big_actions
+                beta = min(beta, value)
+            return value, big_actions
+
+    _, list_action = helper(board.layout, 0, alpha=float('-inf'), beta=float('inf'))
+    if len(list_action) >= 3:
+        return [list_action.pop(), list_action.pop(), list_action.pop()]
+    else:
+        raise
+
+
 # 任取两个智能体
-west_play = alpha_beta_under_time_limit_bot
+west_play = improved_alpha_beta_bot
 east_play = gambler_bot
