@@ -8,6 +8,7 @@ if __name__ == "__main__":
         my_core = Core(west_play=west_play, east_play=east_play)
         my_core.run()
     except GameException as e:
-        print(e.message, e.origin_exception if e.origin_exception else '')
+        print('West' if e.side == 'W' else 'East' + ' wrong: ' + e.message,
+              e.origin_exception if e.origin_exception else '')
     except BaseException as e:
         print('Core Error!', e)

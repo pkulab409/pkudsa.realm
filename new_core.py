@@ -11,12 +11,21 @@ class GameException(Exception):
         self.origin_exception = origin_exception
 
 
-def reverse_side(s: str) -> str:
+def _reverse_side(s: str) -> str:
     # E和W互换的函数
     if s == 'W':
         return 'E'
     else:
         return 'W'
+
+
+def _generate_from_chess_data() -> list:
+    lst = get_chess_datas()
+    results = []
+    for chess in lst:
+        results.append({'name': chess.name, 'hp': chess.hp_limit, 'atk': chess.atk, 'moving_set': chess.moving_set,
+                        'atk_set': chess.atk_set})
+    return results
 
 
 class CoreChess:
@@ -33,7 +42,7 @@ class CoreChess:
         self.position: tuple[int, int] = position  # 位置
         self.alive: bool = True  # 是否存活
 
-    def real_atk(self, other) -> int:
+    def _real_atk(self, other) -> int:
         # 计算实际攻击力
         if self.name == ChessType.Bowman and other.name == ChessType.Infantry:
             return self.atk * 2
@@ -44,7 +53,7 @@ class CoreChess:
 
     def do_attack(self, other):
         # 进行攻击
-        other.hp -= self.real_atk(other)
+        other.hp -= self._real_atk(other)
 
 
 chess_number: int = 3
@@ -59,43 +68,21 @@ safe_area_add_for_home: int = 20
 class Core:
     # 用于运行的类
     def __init__(self, *, west_play, east_play):
-        west_cavalry = CoreChess(side='W', position=(0, 1), name=ChessType.Cavalry, hp=800, atk=400,
-                                 moving_set=frozenset(
-                                     {(0, 1), (-1, -1), (0, 0), (-1, 1), (1, 1), (2, 0), (1, -1), (0, -1), (-2, 0),
-                                      (-1, 0), (0, 2), (1, 0),
-                                      (0, -2)}), atk_set=frozenset({(0, 1), (1, 0), (-1, 0), (0, -1)}))
-        west_bowman = CoreChess(side='W', position=(1, 0), name=ChessType.Bowman, hp=300, atk=500,
-                                moving_set=frozenset({(0, 1), (1, 0), (-1, 0), (0, -1)}),
-                                atk_set=frozenset(
-                                    {(0, 1), (2, -1), (1, 2), (2, 1), (0, -2), (-2, 0), (-1, 0), (0, 2), (1, 0),
-                                     (-2, -1), (-1, -1), (-1, -2), (-2, 1), (-1, 1), (1, 1), (2, 0), (1, -2), (1, -1),
-                                     (-1, 2), (0, -1)}))
-        west_infantry = CoreChess(side='W', position=(1, 1), name=ChessType.Infantry, hp=1800, atk=200,
-                                  moving_set=frozenset({(0, 1), (1, 0), (-1, 0), (0, -1)}),
-                                  atk_set=frozenset({(0, 1), (1, 0), (-1, 0), (0, -1)}))
+        datas = _generate_from_chess_data()
+        west_cavalry = CoreChess(side='W', position=(0, 1), **datas[0])
+        west_bowman = CoreChess(side='W', position=(1, 0), **datas[1])
+        west_infantry = CoreChess(side='W', position=(1, 1), **datas[2])
         self.west = [west_cavalry, west_bowman, west_infantry]
         self.west_home = CoreChess(side='W', position=(0, 0), name=ChessType.Home, hp=2000)
 
-        east_cavalry = CoreChess(side='E', position=(board_size - 1, board_size - 2), name=ChessType.Cavalry, hp=800,
-                                 atk=400, moving_set=frozenset(
-                {(0, 1), (-1, -1), (0, 0), (-1, 1), (1, 1), (2, 0), (1, -1), (0, -1), (-2, 0), (-1, 0), (0, 2), (1, 0),
-                 (0, -2)}), atk_set=frozenset({(0, 1), (1, 0), (-1, 0), (0, -1)}))
-        east_bowman = CoreChess(side='E', position=(board_size - 2, board_size - 1), name=ChessType.Bowman, hp=300,
-                                atk=500, moving_set=frozenset({(0, 1), (1, 0), (-1, 0), (0, -1)}),
-                                atk_set=frozenset(
-                                    {(0, 1), (2, -1), (1, 2), (2, 1), (0, -2), (-2, 0), (-1, 0), (0, 2), (1, 0),
-                                     (-2, -1), (-1, -1), (-1, -2), (-2, 1), (-1, 1), (1, 1), (2, 0), (1, -2), (1, -1),
-                                     (-1, 2), (0, -1)}))
-        east_infantry = CoreChess(side='E', position=(board_size - 2, board_size - 2), name=ChessType.Infantry, hp=1800,
-                                  atk=200, moving_set=frozenset({(0, 1), (1, 0), (-1, 0), (0, -1)}),
-                                  atk_set=frozenset({(0, 1), (1, 0), (-1, 0), (0, -1)}))
+        east_cavalry = CoreChess(side='E', position=(board_size - 1, board_size - 2), **datas[0])
+        east_bowman = CoreChess(side='E', position=(board_size - 2, board_size - 1), **datas[1])
+        east_infantry = CoreChess(side='E', position=(board_size - 2, board_size - 2), **datas[2])
         self.east = [east_cavalry, east_bowman, east_infantry]
         self.east_home = CoreChess(side='E', position=(board_size - 1, board_size - 1), name=ChessType.Home, hp=2000)
 
         self.safe_area = frozenset({(4, 4), (3, 3), (3, 4), (4, 3)})
-        """
-########################## 上面是可以修改的数据，下面开始不需要修改 ##########################
-        """
+
         self.turn_number = 0
 
         self.layout: list[list[None | CoreChess]] = [[None for _ in range(board_size)] for _ in
@@ -163,13 +150,18 @@ class Core:
             east_score = self.east_home.hp + sum(chess.hp for chess in self.east)
         return {'W': west_score, 'E': east_score}
 
+    def calculate_spend_time(self) -> dict:
+        # 计算双方各耗时
+        w_time, e_time = sum(self.west_spend_time), sum(self.east_spend_time)
+        return {'W': w_time, 'E': e_time}
+
     def run(self):
         # 运行点函数
         while self.turn_number < max_turn_number:
             # 初始化策略函数
             side = 'W' if self.turn_number % 2 == 0 else 'E'
             board = Board(turn_number=self.turn_number, layout=self.generate_for_bot_layout(), side=side,
-                          total_turn=max_turn_number)
+                          total_turn=max_turn_number, spend_time=self.calculate_spend_time())
             if side == 'W':
                 board.action_history = self.west_action_history
                 board.my_storage = self.west_storage
@@ -181,14 +173,18 @@ class Core:
             # 运行策略函数
             try:
                 t0 = time.time_ns()
-                list_action = play_func(board)
+                list_action = play_func(board)  # 运行
                 delta_t = time.time_ns() - t0
                 if side == 'W':
                     self.west_spend_time.append(delta_t)
+                    self.west_storage = board.my_storage
                 else:
                     self.east_spend_time.append(delta_t)
+                    self.east_storage = board.my_storage
             except BaseException as e:
                 raise GameException(side=side, message="运行时报错", origin_exception=e)
+            if delta_t > 0.1 * (10 ** 9):
+                raise GameException(side=side, message=f"运行超时，总耗时{delta_t / (10 ** 9)}秒")
             # 进行动作
             try:
                 assert isinstance(list_action, list) and len(list_action) == chess_number
@@ -216,7 +212,7 @@ class Core:
                         atk_x, atk_y = action.dx + x, action.dy + y
                         assert 0 <= atk_x < board_size and 0 <= atk_y < board_size
                         enemy = self.layout[atk_x][atk_y]
-                        assert enemy is not None and enemy.side == reverse_side(side)
+                        assert enemy is not None and enemy.side == _reverse_side(side)
                         chess.do_attack(enemy)
                     else:
                         raise AssertionError
@@ -234,14 +230,14 @@ class Core:
         c = self.calculate_scores()
         w_score, e_score = c['W'], c['E']
         print(f'West score: {w_score}  East score: {e_score}')
-        w_time, e_time = sum(self.west_spend_time), sum(self.east_spend_time)
-        print(f'West spends {w_time / 1000} seconds  East spends {e_time / 1000} seconds')
+        time_dict = self.calculate_spend_time()
+        print(f'West spends {time_dict["W"] / (10 ** 9)} seconds  East spends {time_dict["E"] / (10 ** 9)} seconds')
         if w_score > e_score:
             print('West win!')
         elif w_score < e_score:
             print('East win!')
         else:
-            if w_time < e_time:
+            if time_dict['W'] < time_dict['E']:
                 print('West win!')
             else:
                 print('East win!')

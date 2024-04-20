@@ -27,6 +27,7 @@ class Board:
         self.total_turn = 60  # 总轮数
         self.turn_number = 0  # 当前轮次序号，首轮为0
         self.action_history = []  # 行动历史，下标为轮次，值为list_action
+        self.spend_time = {"W":1000000000,"E":1000000000}  # 双方总耗时，单位纳秒
 ```
 
 ## 动作类Action
