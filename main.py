@@ -1,9 +1,7 @@
-from testing_bot import action_less_bot, gambler_bot
+from testing_bot import west_play, east_play
 from new_core import Core, GameException
 
 if __name__ == "__main__":
-    west_play = gambler_bot
-    east_play = gambler_bot
     try:
         my_core = Core(west_play=west_play, east_play=east_play)
         my_core.run()

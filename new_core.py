@@ -1,5 +1,6 @@
 """
 内核
+最多耗时暂时设的较长，用于测试
 """
 import time
 from for_bot import ChessType, Board, Chess, Action, get_chess_datas, calculate_real_atk
@@ -35,7 +36,7 @@ def _generate_from_chess_data() -> list:
 
 class CoreChess:
     """
-    内核layout中数据的类型，可视为Chess类的高级版本
+        内核layout中数据的类型，可视为Chess类的高级版本
     """
 
     def __init__(self, *, name: ChessType, side: str, hp: int, atk: int = 0, moving_set: frozenset = frozenset(),
@@ -56,10 +57,11 @@ class CoreChess:
 
 
 chess_number: int = 3  # 暂时不许更改
+chess_name_tuple: tuple = (ChessType.Cavalry, ChessType.Bowman, ChessType.Infantry)  # chess类型元组
 
 board_size: int = 8
 max_turn_number: int = 60
-max_spend_time: float = 0.1  # 最多耗时0.1秒
+max_spend_time: float = float('inf')  # 最多耗时
 
 safe_area = frozenset({(4, 4), (3, 3), (3, 4), (4, 3)})
 safe_area_add_for_chess: int = 50
@@ -228,6 +230,8 @@ class Core:
             self.east_action_history.extend(list_action.copy())
             if self.verify_after_turn():
                 break
+            print(f'Turn: {self.turn_number}  Moving Player: {"West" if side == "W" else "East"}'
+                  f'  Time Taken: {delta_t / (10 ** 9)} seconds')
             self.print_layout()
             self.turn_number += 1
         # 结束计算分数
