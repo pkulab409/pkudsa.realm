@@ -3,6 +3,7 @@
 最多耗时暂时设的较长，用于测试
 """
 import time
+import copy
 from for_bot import ChessType, Board, Chess, Action, get_chess_datas, calculate_real_atk
 
 
@@ -104,9 +105,7 @@ class Core:
         self.west_spend_time: list[int] = []
         self.east_spend_time: list[int] = []
 
-        self.action_history: list[list[Action | None]] = []  # 防止攻击篡改同时记录多个history
-        self.west_action_history: list[list[Action | None]] = []
-        self.east_action_history: list[list[Action | None]] = []
+        self.action_history: list[list[Action | None]] = []
 
     def generate_for_bot_layout(self) -> list[list[any]]:
         # 返回bot使用的layout
@@ -168,12 +167,11 @@ class Core:
             side = 'W' if self.turn_number % 2 == 0 else 'E'
             board = Board(turn_number=self.turn_number, layout=self.generate_for_bot_layout(), side=side,
                           total_turn=max_turn_number, spend_time=self.calculate_spend_time())
+            board.action_history = copy.deepcopy(self.action_history)
             if side == 'W':
-                board.action_history = self.west_action_history
                 board.my_storage = self.west_storage
                 play_func = self.west_play
             else:
-                board.action_history = self.east_action_history
                 board.my_storage = self.east_storage
                 play_func = self.east_play
             # 运行策略函数
@@ -225,17 +223,15 @@ class Core:
             except AssertionError:
                 raise GameException(turn=self.turn_number, side=side, message=f"action list illegal: {list_action}")
             # 结束处理
-            self.action_history.extend(list_action.copy())  # 三个history都要增加历史
-            self.west_action_history.extend(list_action.copy())
-            self.east_action_history.extend(list_action.copy())
-            if self.verify_after_turn():
-                break
+            self.action_history.extend([copy.deepcopy(list_action)])
             print(f'Turn: {self.turn_number}  Moving Player: {"West" if side == "W" else "East"}'
                   f'  Time Taken: {delta_t / (10 ** 9)} seconds')
+            if self.verify_after_turn():
+                break
             self.print_layout()
             self.turn_number += 1
         # 结束计算分数
-        print(f'Turn: {self.turn_number}')
+        print(f'\nGAME OVER   Turn: {self.turn_number}')
         c = self.calculate_scores()
         w_score, e_score = c['W'], c['E']
         print(f'West score: {w_score}  East score: {e_score}')

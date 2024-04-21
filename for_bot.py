@@ -133,7 +133,7 @@ def is_terminal(layout: Layout, *, total_turn: int = None, turn_number: int = No
 
 def who_win(layout: Layout)->str|None:
     """
-        判断一个layout局面游戏是否结束
+        判断一个layout局面游戏是否结束。注意：达到最大轮数上限结束时该函数不能判断谁获胜
         未结束返回None
         若结束返回胜方'W'或'E'
     """
@@ -150,7 +150,7 @@ def who_win(layout: Layout)->str|None:
 def calculate_hp_sum(layout: Layout) -> dict:
     # 计算双方当前总血量
     west_hp, east_hp = 0, 0
-    for i in range(len(layout)):
+    for i in range(board_size):
         for chess in layout[i]:
             if chess:
                 if chess.side == 'W':
@@ -168,7 +168,8 @@ def generate_legal_successors(layout: Layout, side: str) -> list[list[Action | N
         所以原则上要调用三次该函数。如果想获得全部可能性，请使用generate_all_possible_successors
 
         （注意Action(op='move',dx=0,dy=0)和None等效；已死亡棋子只允许行动None）
-        如[[Action(op='move',dx=1,dy=1),None],[None],[Action(op='attack',dx=1,dy=0),None]
+        如[[None,Action(op='move',dx=1,dy=1)],[None],[None,Action(op='attack',dx=1,dy=0)]
+        请注意None永远作为行动列表中的第一个值
     """
     own_chess_pos = dict()
     all_pos = set()
