@@ -23,7 +23,7 @@ def gambler_bot(board):
     layout = board.layout
     results = []
     for i in range(chess_number):
-        action_list = generate_legal_successors(layout, side)[i]
+        action_list = generate_legal_successors(layout, side, i)
         if len(action_list) == 1:
             current_action = None
         else:

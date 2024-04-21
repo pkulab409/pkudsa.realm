@@ -51,20 +51,6 @@ _infantry = _ChessData(name=ChessType.Infantry, hp_limit=1800, atk=200,
 _home = _ChessData(name=ChessType.Home, hp_limit=float('inf'), atk=0, moving_set=frozenset(), atk_set=frozenset())
 
 
-def get_chess_datas(*, use_dict: bool = False) -> list | dict:
-    """
-        调用此函数来获得三个兵种的属性数据（生命上限、攻击力、移动范围、攻击范围）
-
-        返回的数据是一个列表（或可以改为字典），依次是各个兵种对应的_ChessData类，只可用于调用静态的属性数据
-        use_dict设为True时返回的是字典数据，采用这种方式返回还会附带一个_home数据（也是_ChessData类）
-    """
-    if not use_dict:
-        return [_cavalry, _bowman, _infantry]
-    else:
-        return {ChessType.Cavalry: _cavalry, ChessType.Bowman: _bowman, ChessType.Infantry: _infantry,
-                ChessType.Home: _home}
-
-
 class Chess:
     """
         返回给玩家的layout中数据的类型
@@ -97,8 +83,25 @@ class Board:  # bot只读的类，只允许更改self.my_storage
 """
 
 
+def get_chess_datas(*, use_dict: bool = False) -> list | dict:
+    """
+        调用此函数来获得三个兵种的属性数据（生命上限、攻击力、移动范围、攻击范围）
+
+        返回的数据是一个列表（或可以改为字典），依次是各个兵种对应的_ChessData类，只可用于调用静态的属性数据
+        use_dict设为True时返回的是字典数据，采用这种方式返回还会附带一个_home数据（也是_ChessData类）
+    """
+    if not use_dict:
+        return [_cavalry, _bowman, _infantry]
+    else:
+        return {ChessType.Cavalry: _cavalry, ChessType.Bowman: _bowman, ChessType.Infantry: _infantry,
+                ChessType.Home: _home}
+
+
 def calculate_real_atk(one: ChessType, other: ChessType) -> int:
-    # 计算经过加成后的真实攻击数据
+    """
+        计算经过加成后的真实攻击数据
+        这里one是攻击方，other是被攻击方，必须都是ChessType类
+    """
     datas = get_chess_datas(use_dict=True)
     first = datas[one]
     if one == ChessType.Bowman and other == ChessType.Infantry:
@@ -112,6 +115,7 @@ def calculate_real_atk(one: ChessType, other: ChessType) -> int:
 def is_terminal(layout: Layout, *, total_turn: int = None, turn_number: int = None) -> bool:
     """
         判断一个layout局面游戏是否已经结束，若结束返回True
+        注意这只可判断在turn结束后的局面，不可用于判断turn之中的局面
 
         可选参数：total_turn, turn_number
         二者必须同时提供或不提供。这里total_turn需要提供总轮数，turn_number需要提供当前轮次数（还未移动棋子前）
@@ -131,20 +135,30 @@ def is_terminal(layout: Layout, *, total_turn: int = None, turn_number: int = No
         return True
 
 
-def who_win(layout: Layout)->str|None:
+def who_win(layout: Layout, *, force_judge: bool = False) -> str | None:
     """
-        判断一个layout局面游戏是否结束。注意：达到最大轮数上限结束时该函数不能判断谁获胜
-        未结束返回None
-        若结束返回胜方'W'或'E'
+        判断一个layout局面游戏是否结束，结束返回胜利方，未结束返回None
+
+        可选参数force_judge，默认是False
+        当指定为True时即使未结束也会进行强制判断：通过调用calculate_hp_sum计算双方血量判断谁获胜。注意平局时返回字符串 tie
     """
     west_home = layout[0][0]
     east_home = layout[-1][-1]
-    if west_home is None or west_home.hp<=0:
+    if west_home is None or west_home.hp <= 0:
         return 'E'
-    elif east_home is None or east_home.hp<=0:
+    elif east_home is None or east_home.hp <= 0:
         return 'W'
     else:
-        return None
+        if force_judge:
+            hp_dict = calculate_hp_sum(layout)
+            if hp_dict['W'] > hp_dict['E']:
+                return 'W'
+            elif hp_dict['W'] < hp_dict['E']:
+                return 'E'
+            else:
+                return 'tie'
+        else:
+            return None
 
 
 def calculate_hp_sum(layout: Layout) -> dict:
@@ -160,18 +174,18 @@ def calculate_hp_sum(layout: Layout) -> dict:
     return {'W': west_hp, 'E': east_hp}
 
 
-def generate_legal_successors(layout: Layout, side: str) -> list[list[Action | None]]:
+def generate_legal_successors(layout: Layout, side: str, name: ChessType | int) -> list[Action | None]:
     """
-        从当前棋局layout和side（哪一方）计算对每单个棋子允许的下一步
-        返回一个长为3的数组，数据依次是各个棋子允许行动的列表
-        需要注意的是：这不代表该轮次三次行动的可行范围，而是只代表对每个棋子的行动可行范围。因为有可能棋子同时行动会发生冲突
-        所以原则上要调用三次该函数。如果想获得全部可能性，请使用generate_all_possible_successors
+        从当前棋局layout和side（行动方）计算对某个棋子（name用于指示）允许的下一步
+        返回列表，表示该棋子允许行动的列表
+        原则上要接连调用三次该函数。（如果想直接获得全部可能性，请使用generate_all_possible_successors）
 
-        （注意Action(op='move',dx=0,dy=0)和None等效；已死亡棋子只允许行动None）
-        如[[None,Action(op='move',dx=1,dy=1)],[None],[None,Action(op='attack',dx=1,dy=0)]
-        请注意None永远作为行动列表中的第一个值
+        参数name可以是ChessType类也可以是整数类型，即可以是Cavalry Bowman Infantry或是0 1 2
+        （注意Action(op='move',dx=0,dy=0)和None等效；已死亡棋子只允许行动None；None永远作为返回行动列表中的第一个值）
     """
-    own_chess_pos = dict()
+    if isinstance(name, int):
+        name = chess_name_tuple[name]
+    my_chess_pos = None
     all_pos = set()
     enemy_pos = set()
     for i in range(board_size):
@@ -179,41 +193,43 @@ def generate_legal_successors(layout: Layout, side: str) -> list[list[Action | N
             chess = layout[i][j]
             if chess:
                 if chess.side == side:
-                    own_chess_pos[chess.name] = (i, j)
+                    if chess.name == name:
+                        my_chess_pos = (i, j)
                 else:
                     enemy_pos.add((i, j))
                 all_pos.add((i, j))
-    datas = get_chess_datas(use_dict=True)
-    results = [[None] for _ in range(chess_number)]
-    for chess_name, (x, y) in own_chess_pos.items():
-        if chess_name == ChessType.Home:
-            continue
-        actions = [None]
-        chess_data = datas[chess_name]
-        for u, v in chess_data.moving_set:
-            new_x, new_y = x + u, y + v
-            if 0 <= new_x < board_size and 0 <= new_y < board_size and ((new_x, new_y) not in all_pos):
-                actions.append(Action(op='move', dx=u, dy=v))
-        for u, v in chess_data.atk_set:
-            atk_x, atk_y = x + u, y + v
-            if (atk_x, atk_y) in enemy_pos:
-                actions.append(Action(op='attack', dx=u, dy=v))
-        results[chess_name.value] = actions
-    return results
+    data = get_chess_datas(use_dict=True)[name]
+    if my_chess_pos is None:
+        return [None]
+    result = [None]
+    x, y = my_chess_pos
+    for u, v in data.moving_set:
+        new_x, new_y = x + u, y + v
+        if 0 <= new_x < board_size and 0 <= new_y < board_size and ((new_x, new_y) not in all_pos):
+            result.append(Action(op='move', dx=u, dy=v))
+    for u, v in data.atk_set:
+        atk_x, atk_y = x + u, y + v
+        if (atk_x, atk_y) in enemy_pos:
+            result.append(Action(op='attack', dx=u, dy=v))
+    return result
 
 
-def do_in_turn_action(layout: Layout, side: str, *, name: ChessType, action: Action | None,
+def do_in_turn_action(layout: Layout, side: str, name: ChessType | int, action: Action | None, *,
                       use_copy: bool = False) -> Layout:
     """
         对单个行动计算行动后的layout
-        需提供当前局面layout 哪一方side 行动棋子类型name 行动action
+        需提供当前局面layout 行动方side 行动棋子类型name 行动action
         原则上调用三次该函数才能计算出一个轮次结束后的棋局。请在调用三次完成之后务必调用do_after_turn来结算
         （应该注意turn中途血量小于0的棋子不会立即死亡）
 
-        该函数不会彻底检验action是否合法，若不合法可能会导致输出的layout是奇怪的
-        该函数是直接对layout以及其中的Chess类进行操作，若不希望这一点请将use_copy设为True
+        参数name可以是ChessType类也可以是整数类型，即可以是Cavalry Bowman Infantry或是0 1 2
+        可选参数use_copy，默认是False，会直接对layout以及其中的Chess类进行操作
+        当指定为True时会进行深度拷贝
+
+        （该函数不会彻底检验action是否合法，若不合法可能会导致输出的layout是奇怪的）
     """
-    assert name.value in (0, 1, 2)
+    if isinstance(name, int):
+        name = chess_name_tuple[name]
     if use_copy:
         layout = copy.deepcopy(layout)
     if action is None or action == Action(op='move', dx=0, dy=0):
@@ -237,7 +253,8 @@ def do_after_turn(layout: Layout, *, use_copy: bool = False) -> Layout:
     """
         一个轮次结束之后结算turn。给士兵、基地回血并让血量小于等于0的士兵死亡
 
-        该函数是直接对layout以及其中的Chess类进行操作，若不希望这一点请将use_copy设为True
+        可选参数use_copy，默认是False，会直接对layout以及其中的Chess类进行操作
+        当指定为True时会进行深度拷贝
     """
     if use_copy:
         layout = copy.deepcopy(layout)
@@ -265,18 +282,18 @@ def do_after_turn(layout: Layout, *, use_copy: bool = False) -> Layout:
 
 def generate_all_possible_successors(layout: Layout, side: str) -> list[list[Action | None]]:
     """
-        从当前棋局layout和side（哪一方）计算三个棋子的所有可能行动方式
+        从当前棋局layout和side（行动方）计算三个棋子的所有可能行动方式
         返回一个列表，数据是三元列表，表示一种可能的行动方式
         可看作是generate_legal_successors的组合调用版本
 
         如[[None,None,None],[Action(op='move',dx=1,dy=1),None,None]]
     """
     results = []
-    for action0 in generate_legal_successors(layout, side)[0]:
-        layout_1 = do_in_turn_action(layout, side, name=ChessType.Cavalry, action=action0, use_copy=True)
-        for action1 in generate_legal_successors(layout_1, side)[1]:
-            layout_2 = do_in_turn_action(layout_1, side, name=ChessType.Bowman, action=action1, use_copy=True)
-            for action2 in generate_legal_successors(layout_2, side)[2]:
+    for action0 in generate_legal_successors(layout, side, 0):
+        layout_1 = do_in_turn_action(layout, side, 0, action0, use_copy=True)
+        for action1 in generate_legal_successors(layout_1, side, 1):
+            layout_2 = do_in_turn_action(layout_1, side, 1, action1, use_copy=True)
+            for action2 in generate_legal_successors(layout_2, side, 2):
                 results.append([action0, action1, action2])
     return results
 
@@ -284,29 +301,31 @@ def generate_all_possible_successors(layout: Layout, side: str) -> list[list[Act
 def do_list_actions(layout: Layout, side: str, list_action: list[Action | None], *, use_copy: bool = False) -> Layout:
     """
         对一个轮次的连续行动计算行动后的layout
-        需提供当前局面layout 哪一方side 行动列表list_action
+        需提供当前局面layout 行动方side 行动列表list_action
 
-        该函数不会彻底检验action是否合法，若不合法可能会导致输出的layout是奇怪的
-        该函数是直接对layout以及其中的Chess类进行操作，若不希望这一点请将use_copy设为True
+        可选参数use_copy，默认是False，会直接对layout以及其中的Chess类进行操作
+        当指定为True时会进行深度拷贝
+
+        （该函数不会彻底检验action是否合法，若不合法可能会导致输出的layout是奇怪的）
     """
-    layout1 = do_in_turn_action(layout, side, name=ChessType.Cavalry, action=list_action[0], use_copy=use_copy)
-    layout2 = do_in_turn_action(layout1, side, name=ChessType.Bowman, action=list_action[1], use_copy=use_copy)
-    layout3 = do_in_turn_action(layout2, side, name=ChessType.Infantry, action=list_action[2], use_copy=use_copy)
+    layout1 = do_in_turn_action(layout, side, 0, list_action[0], use_copy=use_copy)
+    layout2 = do_in_turn_action(layout1, side, 1, list_action[1], use_copy=use_copy)
+    layout3 = do_in_turn_action(layout2, side, 2, list_action[2], use_copy=use_copy)
     return do_after_turn(layout3, use_copy=use_copy)
 
 
 def generate_all_possible_successors_and_layouts(layout: Layout, side: str) -> list[tuple[list[Action | None], Layout]]:
     """
-        从当前棋局layout和side（哪一方）计算三个棋子的所有可能行动方式并顺带返回操作后的layout局面
+        从当前棋局layout和side（行动方）计算三个棋子的所有可能行动方式并顺带返回操作后的layout局面
         返回一个列表，数据是二元元组，表示一对操作（列表）以及layout
         可看作是generate_all_possible_successors和do_list_actions的整合版本
     """
     results: list[tuple] = []
-    for action0 in generate_legal_successors(layout, side)[0]:
-        layout_1 = do_in_turn_action(layout, side, name=ChessType.Cavalry, action=action0, use_copy=True)
-        for action1 in generate_legal_successors(layout_1, side)[1]:
-            layout_2 = do_in_turn_action(layout_1, side, name=ChessType.Bowman, action=action1, use_copy=True)
-            for action2 in generate_legal_successors(layout_2, side)[2]:
-                layout_3 = do_in_turn_action(layout_2, side, name=ChessType.Infantry, action=action2, use_copy=True)
-                results.append(([action0, action1, action2], do_after_turn(layout_3, use_copy=True)))
+    for action0 in generate_legal_successors(layout, side, 0):
+        layout_1 = do_in_turn_action(layout, side, 0, action0, use_copy=True)
+        for action1 in generate_legal_successors(layout_1, side, 1):
+            layout_2 = do_in_turn_action(layout_1, side, 1, action1, use_copy=True)
+            for action2 in generate_legal_successors(layout_2, side, 2):
+                layout_3 = do_in_turn_action(layout_2, side, 2, action2, use_copy=True)
+                results.append(([action0, action1, action2], do_after_turn(layout_3)))
     return results
