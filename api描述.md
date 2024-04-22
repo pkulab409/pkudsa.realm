@@ -25,7 +25,7 @@ class Board:
         self.my_storage = dict()  # 跨turn存储，字典
         self.total_turn = 60  # 总轮数
         self.turn_number = 0  # 当前轮次序号，首轮为0
-        self.point = {"W":(2000, 3000), "E":(2000, 3000)}  # 当前得分，由司令生命值和士兵总生命值构成
+        self.point = {"W":(2000, 3000), "E":(2000, 3000)}  # 当前得分，由（司令生命值，士兵总生命值）构成
         self.action_history = []  # 行动历史，下标为轮次，值为action
         
     def action_valid(self, layout, side, action):  # 基于棋盘布局和指定对战方，判断行动是否有效
@@ -38,7 +38,7 @@ class Board:
 ```
 
 ## 动作类Action
-- id是士兵标识，分为"R"（骑兵）"A"（弓兵）"F"（步兵）
+- id是士兵标识，分为战士W、射手A、护卫P，（"R"（骑兵）"A"（弓兵）"F"（步兵））
 - mdx, mdy表示移动目的地的坐标偏移值（+-）
 - adx, ady表示攻击目的地的坐标偏移值（+-），**注意**：此偏移值相对于移动后的新位置
 ```python
