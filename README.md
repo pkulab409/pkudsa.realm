@@ -17,7 +17,7 @@
 兵种|攻击力|生命值|攻击范围|移动范围
 :-:|:-:|:-:|:-:|:-:
 骑兵**R**anger|400|800|![Range1](./pictures/Range1.png)|![Range2](./pictures/Range2.png)
-弓兵**A**rcher|500|400|![Range2](./pictures/RangeExtra.png)|![Range1](./pictures/Range1.png)
+弓兵**A**rcher|500|400|![Range2](./pictures/Range2.png)|![Range1](./pictures/Range1.png)
 步兵**F**ighter|200|1800|![Range1](./pictures/Range1.png)|![Range1](./pictures/Range1.png)
 
 ### 棋盘(战场)
