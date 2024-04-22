@@ -14,11 +14,11 @@
 ### 士兵
 
 士兵一共有三个, 分别是骑兵、弓兵与步兵, 具体属性见下表:
-兵种|攻击力|生命值|攻击范围|移动范围|复活时间
-:-:|:-:|:-:|:-:|:-:|:-:
-骑兵|400|800|![Range1](./pictures/Range1.png)|![Range2](./pictures/Range2.png)|5回合
-弓兵|500(攻击步兵时\*2)|300|![Range2](./pictures/Range2.png)|![Range1](./pictures/Range1.png)|4回合
-步兵|200(攻击基地时\*3)|1800|![Range1](./pictures/Range1.png)|![Range1](./pictures/Range1.png)|3回合
+兵种|攻击力|生命值|攻击范围|移动范围
+:-:|:-:|:-:|:-:|:-:
+骑兵|400|800|![Range1](./pictures/Range1.png)|![Range2](./pictures/Range2.png)
+弓兵|500(攻击步兵时\*2)|300|![Range2](./pictures/Range2.png)|![Range1](./pictures/Range1.png)
+步兵|200(攻击基地时\*3)|1800|![Range1](./pictures/Range1.png)|![Range1](./pictures/Range1.png)
 
 ### 棋盘(战场)
 
