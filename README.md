@@ -13,12 +13,12 @@
 
 ### 士兵
 
-士兵一共有三个, 分别是骑兵、弓兵与步兵, 具体属性见下表:
+士兵一共有四种, 分别是战士、射手、护卫与司令, 具体属性见下表:
 兵种|攻击力|生命值|攻击范围|移动范围
 :-:|:-:|:-:|:-:|:-:
-骑兵**R**anger|400|800|![Range1](./pictures/Range1.png)|![Range2](./pictures/Range2.png)
-弓兵**A**rcher|500|400|![Range2](./pictures/Range2.png)|![Range1](./pictures/Range1.png)
-步兵**F**ighter|200|1800|![Range1](./pictures/Range1.png)|![Range1](./pictures/Range1.png)
+战士**W**arrior|400|800|![Range1](./pictures/Range1.png)|![Range2](./pictures/Range2.png)
+射手**A**rcher|500|400|![Range2](./pictures/Range2.png)|![Range1](./pictures/Range1.png)
+护卫**P**rotecter|200|1800|![Range1](./pictures/Range1.png)|![Range1](./pictures/Range1.png)
 
 ### 棋盘(战场)
 
