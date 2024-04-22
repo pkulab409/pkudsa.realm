@@ -16,19 +16,19 @@
 士兵一共有三个, 分别是骑兵、弓兵与步兵, 具体属性见下表:
 兵种|攻击力|生命值|攻击范围|移动范围
 :-:|:-:|:-:|:-:|:-:
-骑兵|400|800|![Range1](./pictures/Range1.png)|![Range2](./pictures/Range2.png)
-弓兵|500(攻击步兵时\*2)|300|![Range2](./pictures/Range2.png)|![Range1](./pictures/Range1.png)
-步兵|200(攻击基地时\*3)|1800|![Range1](./pictures/Range1.png)|![Range1](./pictures/Range1.png)
+骑兵*R*anger|400|800|![Range1](./pictures/Range1.png)|![Range2](./pictures/Range2.png)
+弓兵*A*rcher|500(攻击步兵时\*2)|300|![Range2](./pictures/Range2.png)|![Range1](./pictures/Range1.png)
+步兵*F*ighter|200(攻击基地时\*3)|1800|![Range1](./pictures/Range1.png)|![Range1](./pictures/Range1.png)
 
 ### 棋盘(战场)
 
-如下图所示, 战斗场地大小为8\*8的棋盘. 玩家分为红蓝两方, 其中蓝方为先手. 左下角蓝色区块为蓝方基地所在位置, 右上角红色区块为红方基地所在位置. 基地的初始生命值为2000, 双方士兵初始位置如图所示.
+如下图所示, 战斗场地大小为8\*8的棋盘. 玩家分为红蓝两方（W/E）, 其中蓝方（W）为先手. 左下角蓝色区块为蓝方基地所在位置, 右上角红色区块为红方（E）基地所在位置. 基地的初始生命值为2000, 双方士兵初始位置如图所示.
 
 ![Board](./pictures/Board.png)
 
 ### 回合制
 
-比赛采用回合制，先手玩家（蓝West）进行第一轮次。
+比赛采用回合制，先手玩家（蓝W）进行第一轮次。
 规定下面的流程是一个轮次（turn），游戏开始后, 对战平台会重复执行轮次直到游戏结束.  
 
    1. 玩家指定每个士兵操作（移动move/攻击attack）和操作坐标（dx，dy）.
