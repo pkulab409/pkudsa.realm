@@ -18,7 +18,7 @@
 :-:|:-:|:-:|:-:|:-:
 战士**W**arrior 骑兵**R**anger|400|800|![Range1](./pictures/Range1.png)|![Range2](./pictures/Range2.png)
 射手**A**rcher 弓兵**A**rcher|500|400|![Range2](./pictures/Range2.png)|![Range1](./pictures/Range1.png)
-护卫**P**rotector 步兵**F**ighter|200|1800|![Range1](./pictures/Range1.png)|![Range1](./pictures/Range1.png)
+护卫**P**rotector 步兵**F**ighter|200|1800|![Range1a](./pictures/Range1a.png)|![Range1](./pictures/Range1.png)
 
 ### 棋盘(战场)
 
