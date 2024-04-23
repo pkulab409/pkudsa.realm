@@ -17,13 +17,13 @@
 兵种|攻击力|生命值|攻击范围|移动范围
 :-:|:-:|:-:|:-:|:-:
 战士**W**arrior|400|800|![Range1](./pictures/Range1.png)|![Range2](./pictures/Range2.png)
-射手**A**rcher|500|400|![Range2](./pictures/Range2.png)|![Range1](./pictures/Range1.png)
+射手**S**hooter|500|400|![Range2](./pictures/Range2.png)|![Range1](./pictures/Range1.png)
 护卫**P**rotecter|200|1800|![Range1](./pictures/Range1a.png)|![Range1](./pictures/Range1.png)
 司令**C**ommander|-|2000|司令不能移动或攻击|-
 
 ### 棋盘(战场)
 
-如下图所示, 战斗场地大小为8\*8的棋盘, 棋盘中央2*2的黄色方块为补给区. 玩家分为红蓝两方（W/E）, 其中蓝方（W）为先手. 左下角蓝色区块为蓝方司令所在位置, 右上角红色区块为红方（E）司令所在位置. 双方士兵初始位置如图所示.
+如下图所示, 战斗场地大小为8\*8的棋盘, 棋盘中央2*2的黄色方块为补给区. 玩家分为红蓝两方（E/W）, 其中蓝方（W）为先手. 左下角蓝色区块为蓝方司令所在位置, 右上角红色区块为红方（E）司令所在位置. 双方士兵初始位置如图所示.
 
 ![Board](./pictures/Board.png)
 
@@ -68,3 +68,4 @@
 - 2024.4.15 创建此文档
 - 2024.4.20 更新
 - 2024.4.22 更新 by chbpku
+- 2024.4.23 更新
