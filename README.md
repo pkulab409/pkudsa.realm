@@ -18,7 +18,7 @@
 :-:|:-:|:-:|:-:|:-:
 战士**W**arrior|200|1000|![Range1](./pictures/Range1.png)|![Range2](./pictures/Range2.png)
 射手**A**rcher|250|700|![Range2](./pictures/Range2.png)|![Range1](./pictures/Range1.png)
-护卫**P**rotecter|150|1400|![Range1](./pictures/Range1a.png)|![Range1](./pictures/Range1.png)
+护卫**P**rotector|150|1400|![Range1](./pictures/Range1a.png)|![Range1](./pictures/Range1.png)
 司令**C**ommander|-|1600|司令不能移动或攻击|-
 
 ### 棋盘(战场)
@@ -48,7 +48,7 @@
 
 ### 补给区回血
 
-任何士兵在轮次操作结束时处在补给区（棋盘中央2\*2的黄色方块），可以使自身生命值增加50，同时让己方司令生命值增加50. 注意士兵生命值有上限（初始生命值），司令生命值**没有上限**.
+任何士兵在轮次操作结束时处在补给区（棋盘中央2\*2的黄色方块），可以使自身生命值增加**50**，同时让己方司令生命值增加**50**. 注意士兵生命值有上限（初始生命值），司令生命值**没有上限**.
 
 ### 士兵的死亡规则
 

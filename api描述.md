@@ -25,8 +25,8 @@ from enum import Enum
 class ChessType(Enum):
     COMMANDER = 0
     WARRIOR = 1
-    ARCHER = 2
-    PROTECTOR = 3
+    ARCHER = 3
+    PROTECTOR = 2
     
 class Chess:
     def __init__(self, side, id, hp, pos):
@@ -47,8 +47,11 @@ class Board:
         self.my_storage = dict()  # 跨turn存储，字典
         self.total_turn = 100  # 总轮数
         self.turn_number = 0  # 当前轮次序号，首轮为0
-        self.chess_profile = {ChessType.COMMANDER:()}
-        self.point = {"W":(2000, 3000), "E":(2000, 3000)}  # 当前得分，由（司令生命值，士兵总生命值）构成
+        # 士兵的攻击力和生命值（上限/初始值）
+        self.chess_profile = {ChessType.COMMANDER:(0, 1600), ChessType.WARRIOR:(200, 1000),
+                              ChessType.ARCHER:(250, 700), ChessType.PROTECTOR:(150, 1400)}
+        self.regain = (50, 50)  # 回血设置，（自己回血量，司令回血量）
+        self.point = {"W":(1600, 3100), "E":(1600, 3100)}  # 当前得分，由（司令生命值，士兵总生命值）构成
         self.action_history = []  # 行动历史，下标为轮次，值为action
 ```
 
