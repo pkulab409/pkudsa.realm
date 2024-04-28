@@ -59,11 +59,11 @@ class Board:
 ```python
 from enum import Enum
 class Final(Enum):
-    WIN = 0
-    INVALID_ACTION = 1
-    TIMEOUT = 2
-    COMMANDER_DEAD = 3
-    LESS_POINT = 4
+    WIN = 0  # 胜利
+    INVALID_ACTION = 1  # 无效动作判负
+    TIMEOUT = 2  # 算法超时判负
+    COMMANDER_DEAD = 3  # 司令死亡判负
+    LESS_POINT = 4  # 总生命值低判负
 ```
 
 ### 动作类Action
