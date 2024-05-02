@@ -98,7 +98,7 @@ def get_valid_move(layout, side, id):  # 获取可以一次移动到达的合法
 def get_valid_attack(layout, side, id):  # 获取可以直接攻击的合法位置和目标，排除无效位置
     ...
 
-def get_valid_action(layout, side, id):  # 获取指定士兵所有可能的合法动作
+def get_valid_actions(layout, side, id):  # 获取指定士兵所有可能的合法动作
     ...
 
 ```
