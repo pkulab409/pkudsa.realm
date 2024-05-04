@@ -95,10 +95,10 @@ def get_valid_chess(layout, side):  # 获取指定方的有效士兵，返回Che
 def get_valid_move(layout, side, id):  # 获取可一次移动到达的合法位置（排除了被挡路的情况）；返回列表,每个元素是合法位置(row,col)的二元组，若不存在可移动位置，返回空列表
     ...
 
-def get_valid_attack(layout, side, id):  # 获取可以直接攻击的合法位置和目标，排除无效位置；返回一个列表, 列表的每个元素是形如(目标攻击士兵的位置,目标攻击士兵的Chess对象)的二元组
+def get_valid_attack(layout, side, id):  # 获取可以直接攻击的合法位置和目标，排除无效位置；返回一个列表, 列表的每个元素是形如(目标攻击士兵的位置,目标攻击士兵的Chess对象)的二元组；若不存在可攻击的对象，返回空列表
     ...
 
-def get_valid_actions(layout, side, id):  # 获取指定士兵所有可能的合法动作；返回列表,元素是某个棋子所有可能的Action对象
+def get_valid_actions(layout, side, id):  # 获取指定士兵所有可能的合法动作；返回列表,元素是某个棋子所有可能的Action对象；如果不存在任何有效的操作，返回空列表
     ...
 
 ```
