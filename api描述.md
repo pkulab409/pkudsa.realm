@@ -60,10 +60,10 @@ class Board:
 from enum import Enum
 class Final(Enum):
     WIN = 0  # 胜利
-    INVALID_ACTION = 1  # 无效动作判负
-    TIMEOUT = 2  # 算法超时判负
-    COMMANDER_DEAD = 3  # 司令死亡判负
-    LESS_POINT = 4  # 总生命值低判负
+    COMMANDER_DEAD = 1  # 司令死亡判负
+    LESS_POINT = 2  # 总生命值低判负
+    NONE = 3  # 暂不存在胜利方
+    OTHER = 4  # 其它情形
 ```
 
 ### 动作类Action
@@ -79,11 +79,10 @@ Action = namedtuple("Action", "id mdr mdc adr adc")
 
 ### 实用函数
 ```python
-def valid_action(layout, side, action):  # 返回一个布尔值(True/False)，用于判断传入action的合法性
+def api_decorator(func):  # 标准的装饰器，用于转换算法函数为引擎可读的标准函数
     ...
 
-def make_turn(layout, side, action):  
-    # 在棋盘上进行一个轮次的行动，返回结果layout、分数的delta值(deltaW,DeltaE)，以及可能的胜负(sideW,sideE)
+def valid_action(layout, side, action):  # 返回一个布尔值(True/False)，用于判断传入action的合法性
     ...
 
 def get_chess(layout, side, id):  # 获取指定id士兵的Chess对象
@@ -92,16 +91,35 @@ def get_chess(layout, side, id):  # 获取指定id士兵的Chess对象
 def get_valid_chess(layout, side):  # 获取指定方的有效士兵，返回Chess对象列表
     ...
 
+def get_chess_profile(id) -> dict:  # 获取包含指定id士兵的基础属性的字典
+    ...
+
 def get_valid_move(layout, side, id):  
-# 获取可一次移动到达的合法位置（排除了被挡路的情况）；返回列表,每个元素是合法位置(row,col)的二元组，若不存在可移动位置，返回空列表
+    # 获取可一次移动到达的合法位置（排除了被挡路的情况）；返回列表,每个元素是合法位置(row,col)的二元组，若不存在可移动位置，返回空列表
     ...
 
 def get_valid_attack(layout, side, id):  
-# 获取可以直接攻击的合法位置和目标，排除无效位置；返回一个列表, 列表的每个元素是形如(目标攻击士兵的位置,目标攻击士兵的Chess对象)的二元组；若不存在可攻击的对象，返回空列表
+    # 获取可以直接攻击的合法位置和目标，排除无效位置；返回一个列表, 列表的每个元素是形如(目标攻击士兵的位置,目标攻击士兵的Chess对象)的二元组；若不存在可攻击的对象，返回空列表
     ...
 
 def get_valid_actions(layout, side, id):  
-# 获取指定士兵所有可能的合法动作；返回列表,元素是某个棋子所有可能的Action对象；如果不存在任何有效的操作，返回空列表
+    # 获取指定士兵所有可能的合法动作；返回列表，（除了首位的）元素是该棋子所有可能的Action对象；首位元素None表示不移动。死亡棋子返回的列表只含None
     ...
 
+def make_turn(layout, side, action, *, turn_number=0):  
+    # 在棋盘上进行一个轮次的行动，返回结果layout、分数的delta值{"W":deltaW,"E":deltaE}，以及可能的胜负{"W":winW,"E":winE}
+    # turn_number默认为0。可将其设置为当前turn number，为99（最终turn）时会进行强制结算分数判断胜负
+    ...
+
+def is_terminal(layout):
+    # 基于棋盘布局判断游戏是否终止。终止返回胜方W或E，不终止返回None
+    ...
+
+def calculate_scores(layout):
+    # 基于棋盘布局返回计算分数{'W': (司令生命值, 士兵总生命值), 'E': (司令生命值, 士兵总生命值)}
+    ...
+
+def who_win(layout) -> str:
+    # 基于棋盘计算分数来判断谁获胜
+    ...
 ```
