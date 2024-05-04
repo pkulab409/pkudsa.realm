@@ -1,3 +1,4 @@
+# 目标为直接击杀司令
 import realm
 import random
 
@@ -5,16 +6,16 @@ def gambler_score(layout,side,id,action,enemy_side):
     target_pos = realm.get_chess(layout,enemy_side,realm.ChessType.COMMANDER).pos
     current_pos = realm.get_chess(layout,side,id).pos
     if (current_pos[0] + action.adr,current_pos[1] + action.adc) == target_pos: # 如果攻击到司令
-        return 8 # 赋予该Action较高的分数
+        return 8 # 赋予该Action最高的分数
     else: 
         profile = realm.get_chess_profile(id)
         atk_pos_list = profile['atk_pos']
         distance_min = 8
         for delta in atk_pos_list:
             t_r,t_c=current_pos[0]+delta[0],current_pos[1]+delta[1]
-            distance = abs(t_r-target_pos[0])+abs(t_c-target_pos[1]) # 与敌方司令之间的曼哈顿距离
+            distance = abs(t_r-target_pos[0])+abs(t_c-target_pos[1]) # 计算与敌方司令之间的曼哈顿距离
             distance_min = min(distance_min,distance) 
-        return -distance_min
+        return -distance_min # 距离越小，越有可能在下一轮次攻击对方司令，则赋予更高的分数
 
 def gambler(layout,my_side):
     if realm.is_terminal(layout):
