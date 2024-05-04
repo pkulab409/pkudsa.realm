@@ -79,11 +79,11 @@ Action = namedtuple("Action", "id mdr mdc adr adc")
 
 ### 实用函数
 ```python
-def valid_action(layout, side, action):  # 返回action的有效性True/False
+def valid_action(layout, side, action):  # 返回一个布尔值(True/False)，用于判断传入action的合法性
     ...
 
 def make_turn(layout, side, action):  
-    # 在棋盘上进行一个轮次的行动，返回结果layout和分数的delta值(deltaW,DeltaE)，以及可能的胜负(sideW,sideE)
+    # 在棋盘上进行一个轮次的行动，返回结果layout、分数的delta值(deltaW,DeltaE)，以及可能的胜负(sideW,sideE)
     ...
 
 def get_chess(layout, side, id):  # 获取指定id士兵的Chess对象
@@ -92,13 +92,13 @@ def get_chess(layout, side, id):  # 获取指定id士兵的Chess对象
 def get_valid_chess(layout, side):  # 获取指定方的有效士兵，返回Chess对象列表
     ...
 
-def get_valid_move(layout, side, id):  # 获取可以一次移动到达的合法位置，排除被挡路的位置
+def get_valid_move(layout, side, id):  # 获取可一次移动到达的合法位置（排除了被挡路的情况）；返回列表,每个元素是合法位置(row,col)的二元组，若不存在可移动位置，返回空列表
     ...
 
-def get_valid_attack(layout, side, id):  # 获取可以直接攻击的合法位置和目标，排除无效位置
+def get_valid_attack(layout, side, id):  # 获取可以直接攻击的合法位置和目标，排除无效位置；返回一个列表, 列表的每个元素是形如(目标攻击士兵的位置,目标攻击士兵的Chess对象)的二元组
     ...
 
-def get_valid_actions(layout, side, id):  # 获取指定士兵所有可能的合法动作
+def get_valid_actions(layout, side, id):  # 获取指定士兵所有可能的合法动作；返回列表,元素是某个棋子所有可能的Action对象
     ...
 
 ```
