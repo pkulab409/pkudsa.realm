@@ -155,11 +155,11 @@ get_valid_attack(layout, side, chess_id) -> List[Tuple[Tuple[int,int],Chess]]
 
 7. 获取指定士兵所有可能的合法动作或全部合法动作
 ```python
-get_valid_actions(layout, side, chess_id) -> List[Action]
+get_valid_actions(layout, side, chess_id = None) -> List[Action]
 ```
 - 返回一个列表，（除了首位的）元素是该棋子所有可能的Action对象；首位元素None表示不移动。
 - **死亡棋子返回的列表只含None**
-- **若在chess_id处传入None**, 返回包含所有棋子的全部合法动作，返回值为嵌套列表
+- **若chess_id = None**, 返回包含所有棋子的全部合法动作，返回值为嵌套列表
 
 8. 基于棋盘布局和指定对战方，进行一个虚拟的轮次，返回结果 <br>
 ```python
