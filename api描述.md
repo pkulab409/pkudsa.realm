@@ -16,12 +16,13 @@
 - 行动（action）：描述对棋盘上的士兵发出的指令，包括士兵id、水平移动距离，竖直移动距离，攻击目标的水平偏移值，攻击目标的竖直偏移值
 
 ## 玩家算法代码源文件
+- 其中api_decorator是一个装饰器，用于转换算法函数为引擎可读的函数
 ```python
 import realm  # 定义了所有玩家可以用的类和实用函数
 
-def update(board):  # 根据当前棋局（board），经过决策，返回动作
-    ...             # 在此处编写代码
-    return action   # 返回Action对象
+def play(board):  # 根据当前棋局，经过决策，返回动作
+    ...
+    return action  # 返回动作
 ```
 平台将在对局开始前生成双方的AI实例, 每回合按照先后手轮流调用AI实例的update方法.<br>
 在每一轮次(turn)结束后，平台将结算玩家得分并更新盘面(board)
@@ -37,8 +38,8 @@ class ChessType(Enum):
     PROTECTOR = 2
     
 class Chess:
-    def __init__(self, side, chess_id, hp, pos):
-        self.chess_id = chess_id  # 棋子ID, 如：ChessType.COMMANDER
+    def __init__(self, side, id, hp, pos):
+        self.id = id  # 棋子ID, 如：ChessType.COMMANDER
         self.hp = hp  # 棋子当前剩余血量
         self.side = side  # 棋子所属的对战方, 如："W"
         self.pos = pos  # 棋子当前位置(row, col), 如(0,0)对应于左上角位置
@@ -103,80 +104,45 @@ action = Action(chess_id=ChessType.ARCHER, mdr=0, mdc=0, adr=1, adc=0)
 ```python
 def api_decorator(func):  # 标准的装饰器，用于转换算法函数为引擎可读的标准函数
     ...
-```
-- 示例用法：
-```python
-@realm.api_decorator
-def update(board): 
-    pass # 编写对战算法
-    return action
-```
 
-#### 部分参数说明（适用于以下全部函数）：
-- side：指明所处对战方，可以通过 board.my_side 调用
-- chess_id: 指定士兵id 
+def valid_action(layout, side, action):  # 返回一个布尔值(True/False)，用于判断传入action的合法性
+    ...
 
-#### 函数功能和用法：
-1. 判断传入action的合法性 <br>
-```python
-valid_action(layout, side, action) -> bool 
-```
-2. 获取指定id士兵的Chess对象<br>
-```python
-get_chess(layout, side, chess_id) -> Chess
-```
-3. 获取指定方的有效士兵 <br>
-```python
-get_valid_chess(layout, side) -> List[Chess]<br>
-```
-- 返回Chess对象列表
+def get_chess(layout, side, id):  # 获取指定id士兵的Chess对象
+    ...
 
-4. 获取包含指定id士兵的基础属性<br>
-```python
-get_chess_profile(chess_id) -> dict
+def get_valid_chess(layout, side):  # 获取指定方的有效士兵，返回Chess对象列表
+    ...
+
+def get_chess_profile(id) -> dict:  # 获取包含指定id士兵的基础属性的字典
+    ...
+
+def get_valid_move(layout, side, id):  
+    # 获取可一次移动到达的合法位置（排除了被挡路的情况）；返回列表,每个元素是合法位置(row,col)的二元组，若不存在可移动位置，返回空列表
+    ...
+
+def get_valid_attack(layout, side, id):  
+    # 获取可以直接攻击的合法位置和目标，排除无效位置；返回一个列表, 列表的每个元素是形如(目标攻击士兵的位置,目标攻击士兵的Chess对象)的二元组；若不存在可攻击的对象，返回空列表
+    ...
+
+def get_valid_actions(layout, side, id):  
+    # 获取指定士兵所有可能的合法动作；返回列表，（除了首位的）元素是该棋子所有可能的Action对象；首位元素None表示不移动。死亡棋子返回的列表只含None
+    ...
+
+def make_turn(layout, side, action, *, turn_number=0):  
+    # 在棋盘上进行一个轮次的行动，返回结果layout、分数的delta值{"W":deltaW,"E":deltaE}，以及可能的胜负{"W":winW,"E":winE}
+    # turn_number默认为0。可将其设置为当前turn number，为99（最终turn）时会进行强制结算分数判断胜负
+    ...
+
+def is_terminal(layout):
+    # 基于棋盘布局判断游戏是否终止。终止返回胜方W或E，不终止返回None
+    ...
+
+def calculate_scores(layout):
+    # 基于棋盘布局返回计算分数{'W': (司令生命值, 士兵总生命值), 'E': (司令生命值, 士兵总生命值)}
+    ...
+
+def who_win(layout) -> str:
+    # 基于棋盘计算分数来判断谁获胜
+    ...
 ```
-- 返回字典，key依次为'atk', 'atk_pos', 'init_hp', 'move_range'，对应的value分别为士兵的攻击力、可攻击位置的偏移值、初始生命值、移动范围（曼哈顿距离）
-
-5. 获取可一次移动到达的合法位置（被挡路情况已排除） <br>
-```python
-get_valid_move(layout, side, chess_id) -> List[Tuple[int,int]]
-```
-- 返回一个列表，每个元素是合法位置(row,col)的二元组；
-- 若不存在可移动位置，返回空列表
-
-6. 获取可以直接攻击的合法位置和目标（无效位置已排除）<br>
-```python
-get_valid_attack(layout, side, chess_id) -> List[Tuple[Tuple[int,int],Chess]]
-```
-- 返回一个列表, 列表的每个元素是形如 (目标攻击士兵的位置,目标攻击士兵的Chess对象) 的二元组；
-- 若不存在可攻击的对象，返回空列表
-
-7. 获取指定士兵所有可能的合法动作 
-```python
-get_valid_actions(layout, side, chess_id) -> List[Action]
-```
-- 返回一个列表，（除了首位的）元素是该棋子所有可能的Action对象；首位元素None表示不移动。
-- **死亡棋子返回的列表只含None**
-
-8. 一轮次后的结果 <br>
-```python
-make_turn(layout, side, action, *, turn_number=0) -> Tuple[layout,dict,dict]
-```
-- 返回: 结果棋局new_layout、两方分数变化值构成的字典 {"W":deltaW,"E":deltaE}，以及可能的胜负{"W":winW,"E":winE}；deltaW为W方的分数变化值，winW; E对应变量同理
-- turn_number默认为0。可将其设置为当前turn number，为99（最终turn）时会进行强制结算分数判断胜负
-- 示例：
-```python 
-a 
-```
-
-
-9. 基于棋盘布局判断游戏是否终止<br>
-    is_terminal(layout) -> 'W'/'E'/None <br>
-    终止返回胜方W或E，不终止返回None
-10. 计算分数
-calculate_scores(layout):
-基于棋盘布局返回计算分数{'W': (司令生命值, 士兵总生命值), 'E': (司令生命值, 士兵总生命值)}
-11. 获胜判断
-who_win(layout) -> str:
-基于棋盘计算分数来判断谁获胜
-
