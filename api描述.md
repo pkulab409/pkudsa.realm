@@ -21,7 +21,7 @@
 import realm  # 定义了所有玩家可以用的类和实用函数
 
 @realm.api_decorator
-def play(board):  # 根据当前棋局，经过决策，返回动作
+def update(board):  # 根据当前棋局，经过决策，返回动作
     pass          # 在此处编写代码
     return action  # 返回动作
 ```
@@ -84,7 +84,7 @@ class Final(Enum):
 ### 动作类Action
 Action对象的属性：
 - chess_id：为士兵种类标识，如ChessType.ARCHER
-- mdr, mdc分别表示移动目的地相对于当前位置的水平坐标偏移值和垂直坐标偏移值
+- mdr, mdc分别表示移动目的地相对于当前位置的水平坐标偏移值(move delta row) 和垂直坐标偏移值(move delta column)
     - 规定向右/向下为正，向左/向上为负（+-）
     - 例如: mdr=1, mdc=-2 表示向右移动1格，向上移动2格
 - adr, adc表示攻击目的地相对于当前位置的坐标偏移值（+-），用法同行，**注意**：此偏移值相对于移动后的新位置
@@ -114,9 +114,6 @@ def update(board):
     return action
 ```
 
-#### 部分参数说明（适用于以下全部函数）：
-- side：指明所处对战方，可以通过 board.my_side 调用
-- chess_id: 指定士兵id 
 
 #### 函数功能和用法：
 1. 判断传入action的合法性 <br>
@@ -157,9 +154,9 @@ get_valid_attack(layout, side, chess_id) -> List[Tuple[Tuple[int,int],Chess]]
 ```python
 get_valid_actions(layout, side, chess_id = None) -> List[Action]
 ```
-- 返回一个列表，（除了首位的）元素是该棋子所有可能的Action对象；首位元素None表示不移动。
+- 返回一个列表，（除了首位的）元素是该棋子所有可能的Action对象；首位元素为None，表示不移动
 - **死亡棋子返回的列表只含None**
-- **若chess_id = None**, 返回包含所有棋子的全部合法动作，返回值为嵌套列表
+- 若不指定chess_id, 则返回包含所有棋子的全部合法动作，返回值为列表
 
 8. 基于棋盘布局和指定对战方，进行一个虚拟的轮次，返回结果 <br>
 ```python
@@ -174,7 +171,7 @@ make_turn(layout, side, action, *, turn_number=0) -> Tuple[layout,dict,dict]
 
 9. 基于棋盘布局判断游戏是否终止<br>
 ```python 
-    is_terminal(layout) -> str 
+    is_terminal(layout) -> str|None
 ```
 - 若终止，返回胜方，即'W'或'E'；若不终止，返回None
 
@@ -188,5 +185,5 @@ calculate_scores(layout) -> dict
 who_win(layout) -> str
 ```
 - 如果游戏终止，返回获胜方（即is_terminal函数的结果）
-- 如果100轮次时，游戏仍没有触发终止条件，则按胜负判定规则，比较司令生命值和其他士兵生命值，返回获胜方
+- 如果100轮次时，游戏仍没有触发终止条件，则按胜负判定规则，比较司令生命值和其他士兵生命值，返回获胜方，即'W'/'E'
 
