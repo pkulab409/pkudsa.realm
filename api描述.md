@@ -57,7 +57,7 @@ class Chess:
 class Board:
     def __init__(self):
         self.layout = [[None]*8 for _ in range(8)]  # 棋盘为一个8*8的嵌套列表，layout[row][col]，列表元素类型是Chess
-        self.my_side = "W"  # 左下角的West方，或者"E"为右上角的East方
+        self.my_side = "W"  # 己方所处的对战方。左下角的West方，或者"E"为右上角的East方
         self.my_storage = dict()  # 跨turn存储的字典
         self.total_turn = 100  # 总轮数
         self.turn_number = 0  # 当前轮次序号，首轮为0
