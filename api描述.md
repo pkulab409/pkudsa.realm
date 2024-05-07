@@ -46,17 +46,36 @@ class Chess:
         self.pos = pos  # 棋子当前位置(row, col), 如(0,0)对应于左上角位置
 ```
 
-### 棋盘类Board及其属性
-- layout是一个8*8的嵌套列表，用于呈现当前棋盘局面；<br>
+### 棋局类Layout及其属性
+- Layout类是list的子类，本身是一个8*8的嵌套列表，用于呈现当前棋盘局面；<br>
     - 规定 layout[i][j] 返回第i行第j列的元素，例如 layout[0][0] 对应于棋盘的左上角;
     - 若棋盘在该位置上存在棋子，对应的元素类型为棋子类Chess，否则为None
+- 该类拥有属性chess_list，保存有所有棋子。操作Layout对象后需要调用initialize方法才能使chess_list标准化
+
+```python
+class Layout(list):
+    def __init__(self, layout):
+        super().__init__(layout)
+        self.chess_list: list[Chess] = []
+        self.initialize()
+
+    def initialize(self):
+        self.chess_list: list[Chess] = []
+        for i in range(8):
+            for j in range(8):
+                chess = self[i][j]
+                if chess:
+                    self.chess_list.append(chess)
+```
+
+### 棋盘类Board及其属性
 - my_storage为字典，允许玩家修改，可用于跨轮次保存数据
 - 其他可调用的属性可参考下方示例：
 
 ```python
 class Board:
     def __init__(self):
-        self.layout = [[None]*8 for _ in range(8)]  # 棋盘为一个8*8的嵌套列表，layout[row][col]，列表元素类型是Chess
+        self.layout = Layout([[None]*8 for _ in range(8)])  # 棋盘为Layout类型
         self.my_side = "W"  # 己方所处的对战方。左下角的West方，或者"E"为右上角的East方
         self.my_storage = dict()  # 跨turn存储的字典
         self.total_turn = 100  # 总轮数
@@ -122,7 +141,7 @@ valid_action(layout, side, action) -> bool
 ```
 2. 获取指定id士兵的Chess对象<br>
 ```python
-get_chess(layout, side, chess_id) -> Chess
+get_chess(layout, side, chess_id) -> Chess|None
 ```
 3. 获取指定方的有效士兵 <br>
 ```python
@@ -152,7 +171,7 @@ get_valid_attack(layout, side, chess_id) -> List[Tuple[Tuple[int,int],Chess]]
 
 7. 获取指定士兵所有可能的合法动作或全部合法动作
 ```python
-get_valid_actions(layout, side, chess_id = None) -> List[Action]
+get_valid_actions(layout, side, *, chess_id = None) -> List[Action|None]
 ```
 - 返回一个列表，（除了首位的）元素是该棋子所有可能的Action对象；首位元素为None，表示不移动
 - **死亡棋子返回的列表只含None**
@@ -160,7 +179,7 @@ get_valid_actions(layout, side, chess_id = None) -> List[Action]
 
 8. 基于棋盘布局和指定对战方，进行一个虚拟的轮次，返回结果 <br>
 ```python
-make_turn(layout, side, action, *, turn_number=0) -> Tuple[layout,dict,dict]
+make_turn(layout, side, action, *, turn_number=0) -> Tuple[Layout,dict,dict]
 ```
 - 返回: 结果棋局new_layout、两方分数变化值构成的字典 {"W":deltaW,"E":deltaE}，以及可能的胜负{"W":winW,"E":winE}；
     - deltaW为W方的分数变化值
