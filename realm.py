@@ -45,6 +45,20 @@ class Chess:
         self.pos: tuple[int, int] = pos  # 棋子当前位置(row, col)
 
 
+class Layout(list):
+    def __init__(self, layout):
+        super().__init__(layout)
+        self.chess_list: list[Chess] = []
+
+    def initialize(self):
+        self.chess_list: list[Chess] = []
+        for i in range(8):
+            for j in range(8):
+                chess = self[i][j]
+                if chess:
+                    self.chess_list.append(chess)
+
+
 class Board:
     def __init__(self, context, storage: dict, action_history: list[Optional['Action']]):
 
@@ -57,7 +71,7 @@ class Board:
             enemy_side = "W"
 
         # 生成layout和血量
-        self.layout: list[list[Optional[Chess]]] = [[None] * 8 for _ in range(8)]
+        self.layout: Layout = Layout([[None] * 8 for _ in range(8)])
         my_hp_sum, enemy_hp_sum = 0, 0
         my_bots, enemy_bots = context.me.get_bots(), context.enemy.get_bots()
 
@@ -71,6 +85,7 @@ class Board:
             id_ = _tencent_id[bot.type_id]
             self.layout[bot.row][bot.col] = Chess(enemy_side, id_, bot.hp, pos)
             enemy_hp_sum += bot.hp
+        self.layout.initialize()
 
         self.point: dict[str, tuple[float, float]] = {
             self.my_side: (context.me.get_bots(name=100)[0].hp, my_hp_sum),
@@ -115,6 +130,8 @@ def api_decorator(func):
                 last_action = None
             _action_history.append(last_action)
         board = Board(context, _all_players_storage[my_id], copy.deepcopy(_action_history))
+        original_layout = copy.deepcopy(board.layout)
+        original_my_side = board.my_side
         # 运行玩家函数
         result: Optional[Action] = func(board)
         if result and not isinstance(result, Action):
@@ -140,7 +157,7 @@ def api_decorator(func):
             new_r, new_c = row + result.mdr, col + result.mdc
             if not (0 <= new_r < 8 and 0 <= new_c < 8):
                 raise ValueError("Move Out of Game Map")
-            if (result.mdr or result.mdc) and board.layout[new_r][new_c]:
+            if (result.mdr or result.mdc) and original_layout[new_r][new_c]:
                 raise ValueError("Move Blocked")
 
             bot.move_to((row + result.mdr, col + result.mdc))
@@ -150,8 +167,8 @@ def api_decorator(func):
                 atk_c = col + result.mdc + result.adc
                 if not (0 <= atk_r < 8 and 0 <= atk_c < 8):
                     raise ValueError("Bot Attack Out of Game Map")
-                enemy_chess = board.layout[atk_r][atk_c]
-                if not (enemy_chess and enemy_chess.side != board.my_side):
+                enemy_chess = original_layout[atk_r][atk_c]
+                if not (enemy_chess and enemy_chess.side != original_my_side):
                     raise ValueError("Attack Wrong Target")
 
                 bot.attack((atk_r, atk_c))
@@ -161,7 +178,7 @@ def api_decorator(func):
     return wrapper
 
 
-def valid_action(layout: list[list[Optional[Chess]]], side: str, action: Optional[Action]) -> bool:
+def valid_action(layout: Layout, side: str, action: Optional[Action]) -> bool:
     # 基于棋盘布局和指定对战方，判断行动是否有效 返回一个bool变量
     if action is None:
         return True
@@ -176,15 +193,8 @@ def valid_action(layout: list[list[Optional[Chess]]], side: str, action: Optiona
             chess = layout[i][j]
             if chess and chess.side == side and chess.chess_id == action.chess_id:
                 new_r, new_c = i + action.mdr, j + action.mdc
-
-                if not ((new_r, new_c) in get_valid_move(layout, side, chess.chess_id)):
+                if (new_r, new_c) not in get_valid_move(layout, side, chess.chess_id):
                     return False
-                """
-                if not (0 <= new_r < 8 and 0 <= new_c < 8):
-                    return False
-                if (action.mdr or action.mdc) and layout[new_r][new_c]:
-                    return False
-                """
                 if action.adr == 0 and action.adc == 0:
                     return True
                 atk_r, atk_c = new_r + action.adr, new_c + action.adc
@@ -198,7 +208,7 @@ def valid_action(layout: list[list[Optional[Chess]]], side: str, action: Optiona
     return False
 
 
-def get_chess(layout: list[list[Optional[Chess]]], side: str, chess_id: ChessType) -> Optional[Chess]:
+def get_chess(layout: Layout, side: str, chess_id: ChessType) -> Optional[Chess]:
     for i in range(8):
         for j in range(8):
             chess = layout[i][j]
@@ -207,7 +217,7 @@ def get_chess(layout: list[list[Optional[Chess]]], side: str, chess_id: ChessTyp
     return None
 
 
-def get_valid_chess(layout: list[list[Optional[Chess]]], side: str) -> list[Chess]:
+def get_valid_chess(layout: Layout, side: str) -> list[Chess]:
     chess_list = []
     for i in range(8):
         for j in range(8):
@@ -224,7 +234,7 @@ def get_chess_profile(chess_id: ChessType) -> dict:
             'move_range': my_bot.move_range}
 
 
-def get_valid_move(layout: list[list[Optional[Chess]]], side: str, chess_id: ChessType) -> list[tuple[int, int]]:
+def get_valid_move(layout: Layout, side: str, chess_id: ChessType) -> list[tuple[int, int]]:
     # 返回一个列表,每个元素是可移动位置(row,col)的二元组
     chess = get_chess(layout, side, chess_id)
     pos = chess.pos
@@ -255,8 +265,7 @@ def get_valid_move(layout: list[list[Optional[Chess]]], side: str, chess_id: Che
     return position_list
 
 
-def get_valid_attack(layout: list[list[Optional[Chess]]], side: str, chess_id: ChessType) -> list[
-    tuple[tuple[int, int], Chess]]:
+def get_valid_attack(layout: Layout, side: str, chess_id: ChessType) -> list[tuple[tuple[int, int], Chess]]:
     # 返回一个列表,列表的每个元素是一个(位置,兵)的二元组
     chess = get_chess(layout, side, chess_id)
     atk_pos_list = get_chess_profile(chess_id)["atk_pos"]
@@ -270,8 +279,7 @@ def get_valid_attack(layout: list[list[Optional[Chess]]], side: str, chess_id: C
     return atk_list
 
 
-def get_valid_actions(layout: list[list[Optional[Chess]]], side: str, *, chess_id: Optional[ChessType] = None) -> list[
-    Optional[Action]]:
+def get_valid_actions(layout: Layout, side: str, *, chess_id: Optional[ChessType] = None) -> list[Optional[Action]]:
     # 基于棋局和指定行动方，返回列表,元素是某个棋子所有可能的行动Action
     if chess_id is None:
         list_actions = [None]
@@ -299,9 +307,9 @@ def get_valid_actions(layout: list[list[Optional[Chess]]], side: str, *, chess_i
     return result
 
 
-def make_turn(layout: list[list[Optional[Chess]]], side: str, action: Optional[Action], *, turn_number: int = 0) -> \
-        tuple[list[list[Optional[Chess]]], dict[str, tuple[int, int]], dict[str, Final]]:
-    # 基于棋盘布局和指定对战方，进行一个虚拟的轮次，返回结果布局,分数变化,胜利情况。默认提供的是有效行动
+def make_turn(layout: Layout, side: str, action: Optional[Action], *, turn_number: int = 0) -> \
+        tuple[Layout, dict[str, tuple[int, int]], dict[str, Final]]:
+    # 基于棋盘布局和指定对战方，进行一个虚拟的轮次，返回结果布局，分数变化，胜利情况。默认提供的是有效行动
     original_score = calculate_scores(layout)
     virtual_layout = copy.deepcopy(layout)
     if action:
@@ -351,6 +359,7 @@ def make_turn(layout: list[list[Optional[Chess]]], side: str, action: Optional[A
                     virtual_layout[7][0].hp += 25
                 else:
                     virtual_layout[0][7].hp += 25
+    virtual_layout.initialize()
     new_score = calculate_scores(virtual_layout)
     deltaW = (new_score["W"][0] - original_score["W"][0], new_score["W"][1] - original_score["W"][1])
     deltaE = (new_score["E"][0] - original_score["E"][0], new_score["E"][1] - original_score["E"][1])
@@ -383,7 +392,7 @@ def make_turn(layout: list[list[Optional[Chess]]], side: str, action: Optional[A
     return virtual_layout, {"W": deltaW, "E": deltaE}, {"W": winW, "E": winE}
 
 
-def is_terminal(layout: list[list[Optional[Chess]]]) -> Optional[str]:
+def is_terminal(layout: Layout) -> Optional[str]:
     # 基于棋盘布局判断游戏是否终止。终止返回胜方W或E，不终止返回None
     west_home = layout[7][0]
     east_home = layout[0][7]
@@ -395,7 +404,7 @@ def is_terminal(layout: list[list[Optional[Chess]]]) -> Optional[str]:
         return None
 
 
-def calculate_scores(layout: list[list[Optional[Chess]]]) -> dict[str, tuple[int, int]]:
+def calculate_scores(layout: Layout) -> dict[str, tuple[int, int]]:
     # 基于棋盘返回计算分数
     west_home = layout[7][0]
     east_home = layout[0][7]
@@ -415,7 +424,7 @@ def calculate_scores(layout: list[list[Optional[Chess]]]) -> dict[str, tuple[int
     return {'W': (west_home_score, west_total_score), 'E': (east_home_score, east_total_score)}
 
 
-def who_win(layout: list[list[Optional[Chess]]]) -> str:
+def who_win(layout: Layout) -> str:
     # 基于棋盘计算分数来判断谁获胜
     r = is_terminal(layout)
     if r:

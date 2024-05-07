@@ -57,7 +57,6 @@ class Layout(list):
     def __init__(self, layout):
         super().__init__(layout)
         self.chess_list: list[Chess] = []
-        self.initialize()
 
     def initialize(self):
         self.chess_list: list[Chess] = []
