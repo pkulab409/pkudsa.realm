@@ -184,7 +184,7 @@ get_valid_actions(layout, side, *, chess_id = None) -> List[Action|None]
 ```
 - 返回一个列表，（除了首位的）元素是该棋子所有可能的Action对象；首位元素为None，表示不移动
 - **死亡棋子返回的列表只含None**
-- 若不指定chess_id, 则返回包含所有棋子的全部合法动作，返回值为列表
+- 若不指定chess_id, 则返回包含所有棋子的全部合法动作，返回值为列表。列表中元素顺序依次是None、WARRIOR所有行动、ARCHER所有行动、PROTECTOR所有行动
 
 8. 基于棋盘布局和指定对战方，进行一个虚拟的轮次，返回结果 <br>
 ```python
