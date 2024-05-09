@@ -10,8 +10,7 @@
 import api
 from enum import Enum
 from collections import namedtuple
-import copy
-from typing import Optional
+from typing import Optional, TypedDict
 
 
 class ChessType(Enum):
@@ -36,13 +35,9 @@ _tencent_id: dict[int, ChessType] = {100: ChessType.COMMANDER, 101: ChessType.AR
 _game_id: dict[ChessType, int] = {ChessType.COMMANDER: 100, ChessType.ARCHER: 101, ChessType.PROTECTOR: 102,
                                   ChessType.WARRIOR: 103}
 
+Chess = namedtuple("Chess", "side chess_id hp pos")
 
-class Chess:
-    def __init__(self, side: str, chess_id: ChessType, hp: int, pos: tuple[int, int]):
-        self.chess_id: ChessType = chess_id  # 棋子ID, 如：ChessType.COMMANDER
-        self.hp: int = hp  # 棋子当前剩余血量
-        self.side: str = side  # 如："W"
-        self.pos: tuple[int, int] = pos  # 棋子当前位置(row, col)
+Action = namedtuple("Action", "chess_id mdr mdc adr adc")
 
 
 class Layout(list):
@@ -50,17 +45,22 @@ class Layout(list):
         super().__init__(layout)
         self.chess_list: list[Chess] = []
 
-    def initialize(self):
+    def initialize(self) -> list[Chess]:
         self.chess_list: list[Chess] = []
         for i in range(8):
             for j in range(8):
                 chess = self[i][j]
                 if chess:
                     self.chess_list.append(chess)
+        return self.chess_list
+
+    def uninitialized_copy(self) -> 'Layout':
+        new_layout = Layout([[self[i][j] for j in range(8)] for i in range(8)])
+        return new_layout
 
 
 class Board:
-    def __init__(self, context, storage: dict, action_history: list[Optional['Action']]):
+    def __init__(self, context, storage: dict, action_history: list[Optional[Action]]):
 
         self.turn_number: int = context.round - 1
         if self.turn_number % 2 == 0:
@@ -87,20 +87,17 @@ class Board:
             enemy_hp_sum += bot.hp
         self.layout.initialize()
 
-        self.point: dict[str, tuple[float, float]] = {
+        self.point: dict[str, tuple[int, int]] = {
             self.my_side: (context.me.get_bots(name=100)[0].hp, my_hp_sum),
             enemy_side: (context.enemy.get_bots(name=100)[0].hp, enemy_hp_sum)
         }
 
         self.chess_profile: dict[ChessType, tuple] = {ChessType.COMMANDER: (0, 1600), ChessType.WARRIOR: (200, 1000),
                                                       ChessType.ARCHER: (250, 700), ChessType.PROTECTOR: (150, 1400)}
-
+        self.regain: tuple[int, int] = (25, 25)
         self.my_storage: dict = storage
         self.total_turn: int = 100
-        self.action_history: list = action_history
-
-
-Action = namedtuple("Action", "chess_id mdr mdc adr adc")
+        self.action_history: list[Optional[Action]] = action_history
 
 
 def api_decorator(func):
@@ -125,16 +122,19 @@ def api_decorator(func):
                     enemy_move_c = enemy_action.move[1]
                 else:
                     enemy_move_r, enemy_move_c = 0, 0
-                last_action = Action(enemy_id, enemy_move_r, enemy_move_c, enemy_atk_r, enemy_atk_c)
+                if enemy_atk_r == enemy_atk_c == enemy_move_r == enemy_move_c == 0:
+                    last_action = None
+                else:
+                    last_action = Action(enemy_id, enemy_move_r, enemy_move_c, enemy_atk_r, enemy_atk_c)
             else:
                 last_action = None
             _action_history.append(last_action)
-        board = Board(context, _all_players_storage[my_id], copy.deepcopy(_action_history))
-        original_layout = copy.deepcopy(board.layout)
+        board = Board(context, _all_players_storage[my_id], _action_history.copy())
+        original_layout = board.layout.uninitialized_copy()
         original_my_side = board.my_side
         # 运行玩家函数
         result: Optional[Action] = func(board)
-        if result and not isinstance(result, Action):
+        if result is not None and not isinstance(result, Action):
             raise ValueError("Wrong Action Format")
         # 执行回合动作
         _all_players_storage[my_id] = board.my_storage
@@ -152,7 +152,10 @@ def api_decorator(func):
                 raise ValueError("Move Out of Range")
             if result.adr and result.adc and (result.adr, result.adc) not in profile['atk_pos']:
                 raise ValueError("Attack Out of Range")
-            bot = context.me.get_bots(name=_game_id[result.chess_id])[0]
+            bot_list = context.me.get_bots(name=_game_id[result.chess_id])
+            if not bot_list:
+                raise ValueError("Chess not alive")
+            bot = bot_list[0]
             row, col = bot.row, bot.col
             new_r, new_c = row + result.mdr, col + result.mdc
             if not (0 <= new_r < 8 and 0 <= new_c < 8):
@@ -162,7 +165,7 @@ def api_decorator(func):
 
             bot.move_to((row + result.mdr, col + result.mdc))
 
-            if result.adr != 0 or result.adc != 0:
+            if result.adr or result.adc:
                 atk_r = row + result.mdr + result.adr
                 atk_c = col + result.mdc + result.adc
                 if not (0 <= atk_r < 8 and 0 <= atk_c < 8):
@@ -228,7 +231,14 @@ def get_valid_chess(layout: Layout, side: str) -> list[Chess]:
     return chess_list
 
 
-def get_chess_profile(chess_id: ChessType) -> dict:
+class ChessProfile(TypedDict):
+    atk: int
+    atk_pos: list[tuple[int, int]]
+    init_hp: int
+    move_range: int
+
+
+def get_chess_profile(chess_id: ChessType) -> ChessProfile:
     my_bot = api.meta.BOT_ATTRIBUTES[_game_id[chess_id]]
     return {'atk': my_bot.attack_strength, 'atk_pos': my_bot.attack_delta_pos.copy(), 'init_hp': my_bot.init_hp,
             'move_range': my_bot.move_range}
@@ -265,21 +275,22 @@ def get_valid_move(layout: Layout, side: str, chess_id: ChessType) -> list[tuple
     return position_list
 
 
-def get_valid_attack(layout: Layout, side: str, chess_id: ChessType) -> list[tuple[tuple[int, int], Chess]]:
-    # 返回一个列表,列表的每个元素是一个(位置,兵)的二元组
+def get_valid_attack(layout: Layout, side: str, chess_id: ChessType) -> dict[Chess, tuple[int, int]]:
+    # 返回一个字典，键是地方棋子，值是棋子位置
     chess = get_chess(layout, side, chess_id)
     atk_pos_list = get_chess_profile(chess_id)["atk_pos"]
-    atk_list = []
+    ret = {}
     for i in range(8):
         for j in range(8):
             delta = (i - chess.pos[0], j - chess.pos[1])
             if delta in atk_pos_list:
-                if layout[i][j] and layout[i][j].side != side:
-                    atk_list.append(((i, j), layout[i][j]))
-    return atk_list
+                chess = layout[i][j]
+                if chess and chess.side != side:
+                    ret[chess] = (i, j)
+    return ret
 
 
-def get_valid_actions(layout: Layout, side: str, *, chess_id: Optional[ChessType] = None) -> list[Optional[Action]]:
+def get_valid_actions(layout: Layout, side: str, *, chess_id: ChessType = None) -> list[Optional[Action]]:
     # 基于棋局和指定行动方，返回列表,元素是某个棋子所有可能的行动Action
     if chess_id is None:
         list_actions = [None]
@@ -302,7 +313,7 @@ def get_valid_actions(layout: Layout, side: str, *, chess_id: Optional[ChessType
         for delta in atk_pos:
             t_r, t_c = virtual_pos[0] + delta[0], virtual_pos[1] + delta[1]
             if 0 <= t_r < 8 and 0 <= t_c < 8:
-                if layout[t_r][t_c] is not None and layout[t_r][t_c].side != side:
+                if layout[t_r][t_c] and layout[t_r][t_c].side != side:
                     result.append(Action(chess_id, mdr, mdc, delta[0], delta[1]))
     return result
 
@@ -311,85 +322,77 @@ def make_turn(layout: Layout, side: str, action: Optional[Action], *, turn_numbe
         tuple[Layout, dict[str, tuple[int, int]], dict[str, Final]]:
     # 基于棋盘布局和指定对战方，进行一个虚拟的轮次，返回结果布局，分数变化，胜利情况。默认提供的是有效行动
     original_score = calculate_scores(layout)
-    virtual_layout = copy.deepcopy(layout)
-    if action:
-        find = False
-        for i in range(8):
-            for j in range(8):
-                chess = virtual_layout[i][j]
-                if chess and chess.side == side and chess.chess_id == action.chess_id:
-                    find = True
-                    break
-            if find:
-                break
-        else:
-            raise IndexError
-        # 移动
-        new_r, new_c = i + action.mdr, j + action.mdc
-        virtual_layout[i][j], virtual_layout[new_r][new_c] = None, chess
+    virtual_layout = layout.uninitialized_copy()
 
-        # 记得改士兵的信息!
-        virtual_layout[new_r][new_c].pos = (new_r, new_c)
+    def blood_regen():
         # 回血
+        nonlocal virtual_layout
         for i, j in {(3, 3), (3, 4), (4, 3), (4, 4)}:
-            current_chess = virtual_layout[i][j]
+            current_chess: Optional[Chess] = virtual_layout[i][j]
             if current_chess:
                 hp_limit = get_chess_profile(current_chess.chess_id)['init_hp']
-                current_chess.hp = min(hp_limit, current_chess.hp + 25)
+                virtual_layout[i][j] = current_chess._replace(hp=min(hp_limit, current_chess.hp + 25))
                 if current_chess.side == 'W':
-                    virtual_layout[7][0].hp += 25
+                    home: Chess = virtual_layout[7][0]
+                    virtual_layout[7][0] = home._replace(hp=(home.hp + 25))
                 else:
-                    virtual_layout[0][7].hp += 25
+                    home: Chess = virtual_layout[0][7]
+                    virtual_layout[0][7] = home._replace(hp=(home.hp + 25))
+
+    if action:
+        chess = get_chess(virtual_layout, side, action.chess_id)
+        if chess is None:
+            raise IndexError
+        # 移动
+        i_, j_ = chess.pos
+        new_r, new_c = i_ + action.mdr, j_ + action.mdc
+        new_chess = chess._replace(pos=(new_r, new_c))
+        virtual_layout[i_][j_], virtual_layout[new_r][new_c] = None, new_chess
+        # 回血
+        blood_regen()
         # 攻击
         if action.adr or action.adc:
-            enemy_chess = virtual_layout[new_r + action.adr][new_c + action.adc]
-            atk = get_chess_profile(chess.chess_id)['atk']
+            enemy_chess: Chess = virtual_layout[new_r + action.adr][new_c + action.adc]
+            atk = get_chess_profile(action.chess_id)['atk']
             if enemy_chess.hp <= atk:
                 virtual_layout[new_r + action.adr][new_c + action.adc] = None
             else:
-                enemy_chess.hp -= atk
+                virtual_layout[new_r + action.adr][new_c + action.adc] = enemy_chess._replace(hp=(enemy_chess.hp - atk))
     else:
         # 只回血
-        for i, j in {(3, 3), (3, 4), (4, 3), (4, 4)}:
-            current_chess = virtual_layout[i][j]
-            if current_chess:
-                hp_limit = get_chess_profile(current_chess.chess_id)['init_hp']
-                current_chess.hp = min(hp_limit, current_chess.hp + 25)
-                if side == 'W':
-                    virtual_layout[7][0].hp += 25
-                else:
-                    virtual_layout[0][7].hp += 25
-    virtual_layout.initialize()
+        blood_regen()
+
     new_score = calculate_scores(virtual_layout)
-    deltaW = (new_score["W"][0] - original_score["W"][0], new_score["W"][1] - original_score["W"][1])
-    deltaE = (new_score["E"][0] - original_score["E"][0], new_score["E"][1] - original_score["E"][1])
+    delta_w = (new_score["W"][0] - original_score["W"][0], new_score["W"][1] - original_score["W"][1])
+    delta_e = (new_score["E"][0] - original_score["E"][0], new_score["E"][1] - original_score["E"][1])
 
     west_home = virtual_layout[7][0]
     east_home = virtual_layout[0][7]
 
-    winW = Final.NONE
-    winE = Final.NONE
+    win_w = Final.NONE
+    win_e = Final.NONE
     if west_home is None or west_home.hp <= 0:
-        winW = Final.COMMANDER_DEAD
-        winE = Final.WIN
+        win_w = Final.COMMANDER_DEAD
+        win_e = Final.WIN
     elif east_home is None or east_home.hp <= 0:
-        winE = Final.COMMANDER_DEAD
-        winW = Final.WIN
+        win_e = Final.COMMANDER_DEAD
+        win_w = Final.WIN
     elif turn_number == 99:
         if new_score["W"][0] < new_score["E"][0]:
-            winE = Final.WIN
-            winW = Final.LESS_POINT
+            win_e = Final.WIN
+            win_w = Final.LESS_POINT
         elif new_score["E"][0] < new_score["W"][0]:
-            winW = Final.WIN
-            winE = Final.LESS_POINT
+            win_w = Final.WIN
+            win_e = Final.LESS_POINT
         elif new_score["W"][1] > new_score["E"][1]:
-            winE = Final.LESS_POINT
-            winW = Final.WIN
+            win_e = Final.LESS_POINT
+            win_w = Final.WIN
         else:
-            winE = Final.WIN
-            winW = Final.LESS_POINT
+            win_e = Final.WIN
+            win_w = Final.LESS_POINT
 
-    return virtual_layout, {"W": deltaW, "E": deltaE}, {"W": winW, "E": winE}
+    virtual_layout.initialize()
+    return virtual_layout, {"W": delta_w, "E": delta_e}, {"W": win_w, "E": win_e}
 
 
 def is_terminal(layout: Layout) -> Optional[str]:

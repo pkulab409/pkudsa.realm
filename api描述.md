@@ -29,7 +29,7 @@ def update(board):  # 根据当前棋局，经过决策，返回动作
 在每一轮次(turn)结束后，平台将结算玩家得分并更新盘面(board)
 
 ## realm.py的类定义
-### 棋子类Chess及其属性
+### 棋子表示类ChessType
 ```python
 from enum import Enum
 class ChessType(Enum):
@@ -37,20 +37,25 @@ class ChessType(Enum):
     WARRIOR = 1
     ARCHER = 3
     PROTECTOR = 2
-    
-class Chess:
-    def __init__(self, side, chess_id, hp, pos):
-        self.chess_id = chess_id  # 棋子ID, 如：ChessType.COMMANDER
-        self.hp = hp  # 棋子当前剩余血量
-        self.side = side  # 棋子所属的对战方, 如："W"
-        self.pos = pos  # 棋子当前位置(row, col), 如(0,0)对应于左上角位置
 ```
 
-### 棋局类Layout及其属性
+### 棋子类Chess
+- chess_id：为士兵种类标识，如ChessType.ARCHER
+- hp：棋子当前剩余血量
+- side：棋子所属的对战方, 如："W"
+- pos：棋子当前位置(row, col), 如(0,0)对应于左上角位置
+
+```python
+from collections import namedtuple
+Chess = namedtuple("Chess", "side chess_id hp pos")
+```
+
+### 棋局类Layout
 - Layout类是list的子类，本身是一个8*8的嵌套列表，用于呈现当前棋盘局面；<br>
     - 规定 layout[i][j] 返回第i行第j列的元素，例如 layout[0][0] 对应于棋盘的左上角;
     - 若棋盘在该位置上存在棋子，对应的元素类型为棋子类Chess，否则为None
-- 该类拥有属性chess_list，保存有所有棋子。操作Layout对象后需要调用initialize方法才能使chess_list标准化
+- 该类拥有属性chess_list，保存有所有棋子。操作或生成Layout对象后需要调用initialize方法才能使chess_list标准化；initialize方法直接返回标准化后的chess_list
+- uninitialized_copy方法返回一个（未标准化chess_list的）拷贝
 
 ```python
 class Layout(list):
@@ -58,16 +63,21 @@ class Layout(list):
         super().__init__(layout)
         self.chess_list: list[Chess] = []
 
-    def initialize(self):
+    def initialize(self) -> list[Chess]:
         self.chess_list: list[Chess] = []
         for i in range(8):
             for j in range(8):
                 chess = self[i][j]
                 if chess:
                     self.chess_list.append(chess)
+        return self.chess_list
+
+    def uninitialized_copy(self) -> 'Layout':
+        new_layout = Layout([[self[i][j] for j in range(8)] for i in range(8)])
+        return new_layout
 ```
 
-### 棋盘类Board及其属性
+### 棋盘类Board
 - my_storage为字典，允许玩家修改，可用于跨轮次保存数据
 - 其他可调用的属性可参考下方示例：
 
@@ -117,7 +127,7 @@ Action = namedtuple("Action", "chess_id mdr mdc adr adc")
 action = Action(chess_id=ChessType.ARCHER, mdr=0, mdc=0, adr=1, adc=0)
 ```
 
-### 实用函数
+## 实用函数
 #### 修饰器说明：
 ```python
 api_decorator(func)
@@ -140,7 +150,7 @@ valid_action(layout, side, action) -> bool
 ```
 2. 获取指定id士兵的Chess对象<br>
 ```python
-get_chess(layout, side, chess_id) -> Chess|None
+get_chess(layout, side, chess_id) -> Chess | None
 ```
 3. 获取指定方的有效士兵 <br>
 ```python
@@ -163,10 +173,10 @@ get_valid_move(layout, side, chess_id) -> List[Tuple[int,int]]
 
 6. 获取可以直接攻击的合法位置和目标（无效位置已排除）<br>
 ```python
-get_valid_attack(layout, side, chess_id) -> List[Tuple[Tuple[int,int],Chess]]
+get_valid_attack(layout, side, chess_id) -> dict[Chess, tuple[int, int]]
 ```
-- 返回一个列表, 列表的每个元素是形如 (目标攻击士兵的位置,目标攻击士兵的Chess对象) 的二元组；
-- 若不存在可攻击的对象，返回空列表
+- 返回一个字典，键是目标攻击士兵的Chess对象，值是目标攻击士兵的位置
+- 若不存在可攻击的对象，返回空字典
 
 7. 获取指定士兵所有可能的合法动作或全部合法动作
 ```python
@@ -180,16 +190,15 @@ get_valid_actions(layout, side, *, chess_id = None) -> List[Action|None]
 ```python
 make_turn(layout, side, action, *, turn_number=0) -> Tuple[Layout,dict,dict]
 ```
-- 返回: 结果棋局new_layout、两方分数变化值构成的字典 {"W":deltaW,"E":deltaE}，以及可能的胜负{"W":winW,"E":winE}；
-    - deltaW为W方的分数变化值
-    - winW表示胜负原因，根据实际情况，可能的取值为Final.WIN或Final.COMMANDER_DEAD或Final.LESS_POINT或Final.NONE
+- 返回: 结果棋局new_layout、两方分数变化值构成的字典 {"W":delta_w,"E":delta_e}，以及可能的胜负{"W":win_w,"E":win_e}；
+    - delta_w为W方的分数变化值
+    - win_w表示胜负原因，根据实际情况，可能的取值为Final.WIN, Final.COMMANDER_DEAD, Final.LESS_POINT, Final.NONE
     - E方对应变量同理
 - turn_number默认为0。可将其设置为当前turn number，为99（最终turn）时会进行强制结算分数判断胜负
 
-
 9. 基于棋盘布局判断游戏是否终止<br>
 ```python 
-    is_terminal(layout) -> str|None
+    is_terminal(layout) -> str | None
 ```
 - 若终止，返回胜方，即'W'或'E'；若不终止，返回None
 
@@ -198,6 +207,7 @@ make_turn(layout, side, action, *, turn_number=0) -> Tuple[Layout,dict,dict]
 calculate_scores(layout) -> dict
 ```
 - 返回计算分数{'W': (司令生命值, 士兵总生命值), 'E': (司令生命值, 士兵总生命值)}
+
 11. 100轮次结束后，判断获胜方
 ```python
 who_win(layout) -> str
