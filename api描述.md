@@ -92,7 +92,7 @@ class Board:
         # 士兵的攻击力和生命值（上限/初始值）
         self.chess_profile = {ChessType.COMMANDER:(0, 1600), ChessType.WARRIOR:(200, 1000),
                               ChessType.ARCHER:(250, 700), ChessType.PROTECTOR:(150, 1400)}
-        self.regain = (50, 50)  # 回血设置，（自己回血量，司令回血量）
+        self.regain = (25, 25)  # 回血设置，（自己回血量，司令回血量）
         self.point = {"W":(1600, 3100), "E":(1600, 3100)}  # 当前得分，由（司令生命值，士兵总生命值）构成
         self.action_history = []  # 行动历史，下标为轮次，值为action
 ```
