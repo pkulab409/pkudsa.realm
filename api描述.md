@@ -1,4 +1,7 @@
 # API描述
+
+注意：realm.py中开头带下划线的变量和函数是私有的，**不允许调用**
+
 ## 目录
 - [比赛术语](#比赛术语)
 - [玩家算法代码源文件](#玩家算法代码源文件)
@@ -39,42 +42,52 @@ class ChessType(Enum):
     PROTECTOR = 2
 ```
 
-### 棋子类Chess
+### 胜负原因类Final
+```python
+from enum import Enum
+class Final(Enum):
+    WIN = 0  # 胜利
+    COMMANDER_DEAD = 1  # 司令死亡判负
+    LESS_POINT = 2  # 总生命值低判负
+    NONE = 3  # 暂不存在胜利方
+    OTHER = 4  # 其它情形
+```
+胜负原因类Final主要用于make_turn函数，具体用法见下文
+
+### 棋局类Layout
+- Layout类用于保存当前棋局的数据。**建议只使用提供的函数操作此类**
+- copy方法返回一个拷贝
+- 该类有多种方法可以读取其中的数据
+    - details方法返回一个生成器，其中每项为形如{'side': side, 'chess_id': chess_id, 'hp': hp, 'pos': (row, col)}的字典
+    - 下文中get_chess_details函数可获得单个棋子的详细信息
+    - 下文中get_valid_chess_id函数可以获得一方的全部存活棋子
+- **不推荐对该类对象进行改写操作**
+
+```python
+class Layout:
+    def copy(self) -> 'Layout':
+        pass
+
+    def details(self) -> Generator:
+        pass
+```
+
+### 动作类Action
+Action对象的属性：
 - chess_id：为士兵种类标识，如ChessType.ARCHER
-- hp：棋子当前剩余血量
-- side：棋子所属的对战方, 如："W"
-- pos：棋子当前位置(row, col), 如(0,0)对应于左上角位置
+- mdr, mdc分别表示移动目的地相对于当前位置的水平坐标偏移值(move delta row) 和垂直坐标偏移值(move delta column)
+    - 规定向右/向下为正，向左/向上为负（+-）
+    - 例如: mdr=1, mdc=-2 表示向右移动1格，向上移动2格
+- adr, adc表示攻击目的地相对于当前位置的坐标偏移值（+-），用法同行，**注意**：此偏移值相对于移动后的新位置
+    - adr, adc均设置为0时表示不攻击
 
 ```python
 from collections import namedtuple
-Chess = namedtuple("Chess", "side chess_id hp pos")
+Action = namedtuple("Action", "chess_id mdr mdc adr adc")
 ```
-
-### 棋局类Layout
-- Layout类是list的子类，本身是一个8*8的嵌套列表，用于呈现当前棋盘局面；<br>
-    - 规定 layout[i][j] 返回第i行第j列的元素，例如 layout[0][0] 对应于棋盘的左上角;
-    - 若棋盘在该位置上存在棋子，对应的元素类型为棋子类Chess，否则为None
-- 该类拥有属性chess_list，保存有所有棋子。操作或生成Layout对象后需要调用initialize方法才能使chess_list标准化；initialize方法直接返回标准化后的chess_list
-- uninitialized_copy方法返回一个（未标准化chess_list的）拷贝
-
+示例action:
 ```python
-class Layout(list):
-    def __init__(self, layout):
-        super().__init__(layout)
-        self.chess_list: list[Chess] = []
-
-    def initialize(self) -> list[Chess]:
-        self.chess_list: list[Chess] = []
-        for i in range(8):
-            for j in range(8):
-                chess = self[i][j]
-                if chess:
-                    self.chess_list.append(chess)
-        return self.chess_list
-
-    def uninitialized_copy(self) -> 'Layout':
-        new_layout = Layout([[self[i][j] for j in range(8)] for i in range(8)])
-        return new_layout
+action = Action(chess_id=ChessType.ARCHER, mdr=0, mdc=0, adr=1, adc=0)
 ```
 
 ### 棋盘类Board
@@ -97,38 +110,8 @@ class Board:
         self.action_history = []  # 行动历史，下标为轮次，值为action
 ```
 
-### 胜负原因类Final
-```python
-from enum import Enum
-class Final(Enum):
-    WIN = 0  # 胜利
-    COMMANDER_DEAD = 1  # 司令死亡判负
-    LESS_POINT = 2  # 总生命值低判负
-    NONE = 3  # 暂不存在胜利方
-    OTHER = 4  # 其它情形
-```
-胜负原因类Final主要用于make_turn函数，具体用法见下文
-
-### 动作类Action
-Action对象的属性：
-- chess_id：为士兵种类标识，如ChessType.ARCHER
-- mdr, mdc分别表示移动目的地相对于当前位置的水平坐标偏移值(move delta row) 和垂直坐标偏移值(move delta column)
-    - 规定向右/向下为正，向左/向上为负（+-）
-    - 例如: mdr=1, mdc=-2 表示向右移动1格，向上移动2格
-- adr, adc表示攻击目的地相对于当前位置的坐标偏移值（+-），用法同行，**注意**：此偏移值相对于移动后的新位置
-    - adr, adc均设置为0时表示不攻击
-
-```python
-from collections import namedtuple
-Action = namedtuple("Action", "chess_id mdr mdc adr adc")
-```
-示例action:
-```python
-action = Action(chess_id=ChessType.ARCHER, mdr=0, mdc=0, adr=1, adc=0)
-```
-
 ## 实用函数
-#### 修饰器说明：
+### 修饰器说明：
 ```python
 api_decorator(func)
 # 标准的装饰器，用于转换算法函数为引擎可读的标准函数
@@ -142,22 +125,23 @@ def update(board):
     return action
 ```
 
-
-#### 函数功能和用法：
+### 函数功能和用法：
 1. 判断传入action的合法性 <br>
 ```python
-valid_action(layout, side, action) -> bool 
+valid_action(layout, side, action) -> bool
 ```
-2. 获取指定id士兵的Chess对象<br>
+2. 获取指定id士兵的详细信息<br>
 ```python
-get_chess(layout, side, chess_id) -> Chess | None
+get_chess_details(layout, side, chess_id) -> dict | None
 ```
-3. 获取指定方的有效士兵 <br>
+- 若兵不存在返回None
+- 详细信息是形如{'side': side, 'chess_id': chess_id, 'hp': hp, 'pos': (row, col)}的字典
+3. 获取指定方的所有有效士兵 <br>
 ```python
-get_valid_chess(layout, side) -> List[Chess]
+get_valid_chess_id(layout, side, *, include_commander = True) -> list[ChessType]
 ```
 - 返回Chess对象列表
-
+- 可选参数include_commander表示返回的列表是否包含COMMANDER
 4. 获取包含指定id士兵的基础属性<br>
 ```python
 get_chess_profile(chess_id) -> dict
@@ -166,16 +150,16 @@ get_chess_profile(chess_id) -> dict
 
 5. 获取可一次移动到达的合法位置（被挡路情况已排除） <br>
 ```python
-get_valid_move(layout, side, chess_id) -> List[Tuple[int,int]]
+get_valid_move(layout, side, chess_id) -> set[tuple[int, int]]
 ```
-- 返回一个列表，每个元素是合法位置(row,col)的二元组；
-- 若不存在可移动位置，返回空列表
+- 返回一个集合，每个元素是合法位置(row,col)的二元组；
+- 注意可移动位置包含原位置
 
 6. 获取可以直接攻击的合法位置和目标（无效位置已排除）<br>
 ```python
-get_valid_attack(layout, side, chess_id) -> dict[Chess, tuple[int, int]]
+get_valid_attack(layout, side, chess_id) -> dict[ChessType, tuple[int, int]]
 ```
-- 返回一个字典，键是目标攻击士兵的Chess对象，值是目标攻击士兵的位置
+- 返回一个字典，键是目标攻击士兵的ID ChessType对象，值是目标攻击士兵的位置
 - 若不存在可攻击的对象，返回空字典
 
 7. 获取指定士兵所有可能的合法动作或全部合法动作
@@ -184,21 +168,25 @@ get_valid_actions(layout, side, *, chess_id = None) -> List[Action|None]
 ```
 - 返回一个列表，（除了首位的）元素是该棋子所有可能的Action对象；首位元素为None，表示不移动
 - **死亡棋子返回的列表只含None**
-- 若不指定chess_id, 则返回包含所有棋子的全部合法动作，返回值为列表。列表中元素顺序依次是None、WARRIOR所有行动、ARCHER所有行动、PROTECTOR所有行动
+- 若不指定chess_id, 则返回包含所有棋子的全部合法动作，返回值为列表。列表中元素顺序依次是None、WARRIOR所有行动、ARCHER所有行动、PROTECTOR所有行动，注意其中None（表示不行动）只出现一次
 
 8. 基于棋盘布局和指定对战方，进行一个虚拟的轮次，返回结果 <br>
 ```python
-make_turn(layout, side, action, *, turn_number=0) -> Tuple[Layout,dict,dict]
+make_turn(layout, side, action, *, turn_number=0, calculate_points='soft') -> Tuple[Layout,dict|None,dict]
 ```
 - 返回: 结果棋局new_layout、两方分数变化值构成的字典 {"W":delta_w,"E":delta_e}，以及可能的胜负{"W":win_w,"E":win_e}；
     - delta_w为W方的分数变化值
     - win_w表示胜负原因，根据实际情况，可能的取值为Final.WIN, Final.COMMANDER_DEAD, Final.LESS_POINT, Final.NONE
     - E方对应变量同理
 - turn_number默认为0。可将其设置为当前turn number，为99（最终turn）时会进行强制结算分数判断胜负
+- 可选参数calculate_points有三个可选值：'none' 'soft' 'hard'
+    - 默认值是'soft'，此时不会返回两方分数变化值构成的字典（用None占位）。当turn_number被设为99且需要计算分数才能判断分数时才会计算最终分数，这保证了胜负的正常返回。该选项永远不会计算make_turn之前的分数
+    - 设为'hard'时所有值均正常计算并返回
+    - 设为'none'时不会返回两方分数变化值构成的字典（用None占位）。当turn_number被设为99且需要计算分数才能判断分数时会将win_w和win_e均设置为Final.OTHER。该选项永远不会计算任何分数
 
 9. 基于棋盘布局判断游戏是否终止<br>
 ```python 
-    is_terminal(layout) -> str | None
+is_terminal(layout) -> str | None
 ```
 - 若终止，返回胜方，即'W'或'E'；若不终止，返回None
 
