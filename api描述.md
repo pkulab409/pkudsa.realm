@@ -1,6 +1,7 @@
 # API描述
 
-注意：realm.py中开头带下划线的变量和函数是私有的，**不允许调用**
+- 注意：realm.py中开头带下划线的变量和函数是私有的，**不允许调用**
+- 注意：realm.py要求先手W方在棋盘左下角，后手E方在棋盘右上角。请注意先后手选择
 
 ## 目录
 - [比赛术语](#比赛术语)
@@ -174,15 +175,15 @@ get_valid_actions(layout, side, *, chess_id = None) -> List[Action|None]
 ```python
 make_turn(layout, side, action, *, turn_number=0, calculate_points='soft') -> Tuple[Layout,dict|None,dict]
 ```
-- 返回: 结果棋局new_layout、两方分数变化值构成的字典 {"W":delta_w,"E":delta_e}，以及可能的胜负{"W":win_w,"E":win_e}；
+- 返回: 结果棋局new_layout、两方分数变化值构成的字典 {"W":delta_w,"E":delta_e}（注意：**该值只有在calculate_points设置为'hard'时才正常返回**），以及可能的胜负{"W":win_w,"E":win_e}；
     - delta_w为W方的分数变化值
-    - win_w表示胜负原因，根据实际情况，可能的取值为Final.WIN, Final.COMMANDER_DEAD, Final.LESS_POINT, Final.NONE
+    - win_w表示胜负原因，根据实际情况，可能的取值为Final.WIN, Final.COMMANDER_DEAD, Final.LESS_POINT, Final.NONE（当calculate_points设置为'none'时还有可能取值Final.OTHER）
     - E方对应变量同理
 - turn_number默认为0。可将其设置为当前turn number，为99（最终turn）时会进行强制结算分数判断胜负
 - 可选参数calculate_points有三个可选值：'none' 'soft' 'hard'
     - 默认值是'soft'，此时不会返回两方分数变化值构成的字典（用None占位）。当turn_number被设为99且需要计算分数才能判断分数时才会计算最终分数，这保证了胜负的正常返回。该选项永远不会计算make_turn之前的分数
     - 设为'hard'时所有值均正常计算并返回
-    - 设为'none'时不会返回两方分数变化值构成的字典（用None占位）。当turn_number被设为99且需要计算分数才能判断分数时会将win_w和win_e均设置为Final.OTHER。该选项永远不会计算任何分数
+    - 设为'none'时不会返回两方分数变化值构成的字典（用None占位）。当turn_number被设为99且需要计算分数才能判断胜负时会将win_w和win_e均设置为Final.OTHER。该选项永远不会计算任何分数
 
 9. 基于棋盘布局判断游戏是否终止<br>
 ```python 

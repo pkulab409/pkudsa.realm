@@ -57,11 +57,10 @@ class Layout:
         if new_int_pos is None:
             self.chess_details[int_chess_id] = None
             self.pos_to_chess.pop(old_pos)
-        else:
-            if old_pos != new_int_pos:
-                self.pos_to_chess.pop(old_pos)
-                self.pos_to_chess[new_int_pos] = int_chess_id
-                self.chess_details[int_chess_id] = (new_int_pos, hp)
+        elif old_pos != new_int_pos:
+            self.pos_to_chess.pop(old_pos)
+            self.pos_to_chess[new_int_pos] = int_chess_id
+            self.chess_details[int_chess_id] = (new_int_pos, hp)
 
     def set_hp(self, int_chess_id: int, hp: int, *, hp_addition: bool = False):
         pos, old_hp = self.chess_details[int_chess_id]
@@ -246,7 +245,7 @@ def get_chess_details(layout: Layout, side: str, chess_id: ChessType) -> Optiona
     if chess is None:
         return None
     int_pos, hp = chess
-    yield {'side': side, 'chess_id': chess_id, 'hp': hp, 'pos': (int_pos // 8, int_pos % 8)}
+    return {'side': side, 'chess_id': chess_id, 'hp': hp, 'pos': (int_pos // 8, int_pos % 8)}
 
 
 def get_valid_chess_id(layout: Layout, side: str, *, include_commander: bool = True) -> list[ChessType]:
@@ -342,7 +341,7 @@ def get_valid_attack(layout: Layout, side: str, chess_id: ChessType) -> dict[Che
     for adr, adc in atk_pos:
         new_r, new_c = old_r + adr, old_c + adc
         if 0 <= new_r < 8 and 0 <= new_c < 8:
-            target = layout.pos_to_chess.get(int_pos + 8 * adr + adc)
+            target = layout.pos_to_chess.get(8 * new_r + new_c)
             if target is not None and mask != (target >= 4):
                 ret[_int_to_chess[target][1]] = (new_r, new_c)
     return ret
