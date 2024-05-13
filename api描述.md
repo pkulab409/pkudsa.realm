@@ -149,7 +149,7 @@ get_chess_details_by_pos(layout, pos, *, return_details = True) -> dict | bool |
 ```python
 get_valid_chess_id(layout, side, *, include_commander = True) -> list[ChessType]
 ```
-- 返回Chess对象列表
+- 返回ChessType列表
 - 可选参数include_commander默认为True，返回的列表包含COMMANDER。设为False时返回的列表不包含COMMANDER
 5. 获取包含指定id士兵的基础属性<br>
 ```python
