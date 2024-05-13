@@ -56,11 +56,12 @@ class Final(Enum):
 胜负原因类Final主要用于make_turn函数，具体用法见下文
 
 ### 棋局类Layout
-- Layout类用于保存当前棋局的数据。**建议只使用提供的函数操作此类**
+- Layout类用于保存当前棋局的数据。**建议只使用提供的函数操作此类对象**
 - copy方法返回一个拷贝
 - 该类有多种方法可以读取其中的数据
     - details方法返回一个生成器，其中每项为形如{'side': side, 'chess_id': chess_id, 'hp': hp, 'pos': (row, col)}的字典
-    - 下文中get_chess_details函数可获得单个棋子的详细信息
+    - 下文中get_chess_details函数可获得单个棋子是否存活以及其详细信息
+    - 下文中get_chess_details_by_pos函数可以获得某个位置上是否有棋子以及其详细信息
     - 下文中get_valid_chess_id函数可以获得一方的全部存活棋子
 - **不推荐对该类对象进行改写操作**
 
@@ -133,37 +134,44 @@ valid_action(layout, side, action) -> bool
 ```
 2. 获取指定id士兵的详细信息<br>
 ```python
-get_chess_details(layout, side, chess_id) -> dict | None
+get_chess_details(layout, side, chess_id, *, return_details = True) -> dict | bool | None
 ```
-- 若兵不存在返回None
-- 详细信息是形如{'side': side, 'chess_id': chess_id, 'hp': hp, 'pos': (row, col)}的字典
-3. 获取指定方的所有有效士兵 <br>
+- 可选参数默认为True：若兵不存在返回None，若兵存在则返回详细信息，一个形如{'side': side, 'chess_id': chess_id, 'hp': hp, 'pos': (row, col)}的字典
+- return_details设置为False时：若兵不存在返回None，若兵存在返回True。此设置选项一般用来判断某个兵是否存活在棋盘上
+3. 获取指定位置士兵的详细信息<br>
+```python
+get_chess_details_by_pos(layout, pos, *, return_details = True) -> dict | bool | None
+```
+- pos为(row,col)二元组，表示位置
+- 可选参数默认为True：若兵不存在返回None，若兵存在则返回详细信息，一个形如{'side': side, 'chess_id': chess_id, 'hp': hp, 'pos': (row, col)}的字典
+- return_details设置为False时：若兵不存在返回None，若兵存在返回True。此选项一般用来判断棋盘上某个位置是否存在兵
+4. 获取指定方的所有有效士兵 <br>
 ```python
 get_valid_chess_id(layout, side, *, include_commander = True) -> list[ChessType]
 ```
 - 返回Chess对象列表
-- 可选参数include_commander表示返回的列表是否包含COMMANDER
-4. 获取包含指定id士兵的基础属性<br>
+- 可选参数include_commander默认为True，返回的列表包含COMMANDER。设为False时返回的列表不包含COMMANDER
+5. 获取包含指定id士兵的基础属性<br>
 ```python
 get_chess_profile(chess_id) -> dict
 ```
 - 返回字典，key依次为'atk', 'atk_pos', 'init_hp', 'move_range'，对应的value分别为士兵的攻击力、由可攻击位置的偏移值数值构成的列表、初始生命值、移动范围（曼哈顿距离）
 
-5. 获取可一次移动到达的合法位置（被挡路情况已排除） <br>
+6. 获取可一次移动到达的合法位置（被挡路情况已排除） <br>
 ```python
-get_valid_move(layout, side, chess_id) -> set[tuple[int, int]]
+get_valid_move(layout, side, chess_id) -> list[tuple[int, int]]
 ```
-- 返回一个集合，每个元素是合法位置(row,col)的二元组；
+- 返回一个列表，每个元素是合法位置(row,col)的二元组；
 - 注意可移动位置包含原位置
 
-6. 获取可以直接攻击的合法位置和目标（无效位置已排除）<br>
+7. 获取可以直接攻击的合法位置和目标（无效位置已排除）<br>
 ```python
 get_valid_attack(layout, side, chess_id) -> dict[ChessType, tuple[int, int]]
 ```
 - 返回一个字典，键是目标攻击士兵的ID ChessType对象，值是目标攻击士兵的位置
 - 若不存在可攻击的对象，返回空字典
 
-7. 获取指定士兵所有可能的合法动作或全部合法动作
+8. 获取指定士兵所有可能的合法动作或全部合法动作
 ```python
 get_valid_actions(layout, side, *, chess_id = None) -> List[Action|None]
 ```
@@ -171,7 +179,7 @@ get_valid_actions(layout, side, *, chess_id = None) -> List[Action|None]
 - **死亡棋子返回的列表只含None**
 - 若不指定chess_id, 则返回包含所有棋子的全部合法动作，返回值为列表。列表中元素顺序依次是None、WARRIOR所有行动、ARCHER所有行动、PROTECTOR所有行动，注意其中None（表示不行动）只出现一次
 
-8. 基于棋盘布局和指定对战方，进行一个虚拟的轮次，返回结果 <br>
+9. 基于棋盘布局和指定对战方，进行一个虚拟的轮次，返回结果 <br>
 ```python
 make_turn(layout, side, action, *, turn_number=0, calculate_points='soft') -> Tuple[Layout,dict|None,dict]
 ```
@@ -185,22 +193,22 @@ make_turn(layout, side, action, *, turn_number=0, calculate_points='soft') -> Tu
     - 设为'hard'时所有值均正常计算并返回
     - 设为'none'时不会返回两方分数变化值构成的字典（用None占位）。当turn_number被设为99且需要计算分数才能判断胜负时会将win_w和win_e均设置为Final.OTHER。该选项永远不会计算任何分数
 
-9. 基于棋盘布局判断游戏是否终止<br>
+10. 基于棋盘布局判断游戏是否终止<br>
 ```python 
 is_terminal(layout) -> str | None
 ```
 - 若终止，返回胜方，即'W'或'E'；若不终止，返回None
 
-10. 计算分数
+11. 计算分数
 ```python
 calculate_scores(layout) -> dict
 ```
 - 返回计算分数{'W': (司令生命值, 士兵总生命值), 'E': (司令生命值, 士兵总生命值)}
 
-11. 100轮次结束后，判断获胜方
+12. 100轮次结束后，判断获胜方
 ```python
 who_win(layout) -> str
 ```
 - 如果游戏终止，返回获胜方（即is_terminal函数的结果）
-- 如果100轮次时，游戏仍没有触发终止条件，则按胜负判定规则，比较司令生命值和其他士兵生命值，返回获胜方，即'W'/'E'
+- 若未终止，视为此时处于99轮次结束，按胜负判定规则，比较司令生命值和其他士兵生命值，返回获胜方，即'W'/'E'
 

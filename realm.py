@@ -10,7 +10,7 @@
 import api
 from enum import Enum
 from collections import namedtuple
-from typing import Optional, TypedDict, Generator
+from typing import Optional, TypedDict, Generator, Union
 
 
 class ChessType(Enum):
@@ -35,6 +35,10 @@ _tencent_id: dict[int, ChessType] = {100: ChessType.COMMANDER, 101: ChessType.AR
                                      103: ChessType.WARRIOR}
 _game_id: dict[ChessType, int] = {ChessType.COMMANDER: 100, ChessType.ARCHER: 101, ChessType.PROTECTOR: 102,
                                   ChessType.WARRIOR: 103}
+_valid_int_pos: set[int] = {10 * i + j for i in range(8) for j in range(8)}
+_int_to_delta_tuple: dict[int, tuple[int, int]] = {-20: (-2, 0), -10: (-1, 0), 0: (0, 0), 10: (1, 0), 20: (2, 0),
+                                                   1: (0, 1), 2: (0, 2), -1: (0, -1), -2: (0, -2), 11: (1, 1),
+                                                   9: (1, -1), -9: (-1, 1), -11: (-1, -1)}
 
 _chess_to_int: dict[tuple[str, ChessType], int] = {(i, j): (4 * (i == 'E') + j.value) for i in 'WE' for j in ChessType}
 _int_to_chess: dict[int, tuple[str, ChessType]] = {value: key for key, value in _chess_to_int.items()}
@@ -78,7 +82,7 @@ class Layout:
                 continue
             int_pos, hp = chess
             side, chess_id = _int_to_chess[int_chess_id]
-            yield {'side': side, 'chess_id': chess_id, 'hp': hp, 'pos': (int_pos // 8, int_pos % 8)}
+            yield {'side': side, 'chess_id': chess_id, 'hp': hp, 'pos': (int_pos // 10, int_pos % 10)}
 
 
 Action = namedtuple("Action", "chess_id mdr mdc adr adc")
@@ -101,14 +105,14 @@ class Board:
         pos_to_chess: dict[int, int] = {}
         chess_details: list[Optional[tuple[int, int]]] = [None for _ in range(8)]
         for bot in my_bots:
-            int_pos = 8 * bot.row + bot.col
+            int_pos = 10 * bot.row + bot.col
             hp = bot.hp
             int_chess_id = _chess_to_int[self.my_side, _tencent_id[bot.type_id]]
             pos_to_chess[int_pos] = int_chess_id
             chess_details[int_chess_id] = (int_pos, hp)
             my_hp_sum += bot.hp
         for bot in enemy_bots:
-            int_pos = 8 * bot.row + bot.col
+            int_pos = 10 * bot.row + bot.col
             hp = bot.hp
             int_chess_id = _chess_to_int[enemy_side, _tencent_id[bot.type_id]]
             pos_to_chess[int_pos] = int_chess_id
@@ -188,7 +192,7 @@ def api_decorator(func):
             new_r, new_c = row + result.mdr, col + result.mdc
             if not (0 <= new_r < 8 and 0 <= new_c < 8):
                 raise ValueError("Move Out of Game Map")
-            if (result.mdr or result.mdc) and original_layout.pos_to_chess.get(8 * new_r + new_c) is not None:
+            if (result.mdr or result.mdc) and original_layout.pos_to_chess.get(10 * new_r + new_c) is not None:
                 raise ValueError("Move Blocked")
 
             bot.move_to((row + result.mdr, col + result.mdc))
@@ -198,7 +202,7 @@ def api_decorator(func):
                 atk_c = col + result.mdc + result.adc
                 if not (0 <= atk_r < 8 and 0 <= atk_c < 8):
                     raise ValueError("Bot Attack Out of Game Map")
-                enemy_chess = original_layout.pos_to_chess.get(8 * atk_r + atk_c)
+                enemy_chess = original_layout.pos_to_chess.get(10 * atk_r + atk_c)
                 if enemy_chess is None or (enemy_chess >= 4) == original_my_side_mask:
                     raise ValueError("Attack Wrong Target")
 
@@ -223,29 +227,43 @@ def valid_action(layout: Layout, side: str, action: Optional[Action]) -> bool:
     chess = layout.chess_details[int_chess_id]
     if chess is None:
         return False
-    int_pos = chess[0]
-    new_r, new_c = int_pos // 8 + action.mdr, int_pos % 8 + action.mdc
-    if (new_r, new_c) not in _hidden_get_valid_move(layout, int_chess_id):
+    new_pos = chess[0] + 10 * action.mdr + action.mdc
+    if new_pos not in _hidden_get_valid_move(layout, int_chess_id):
         return False
     if action.adr == action.adc == 0:
         return True
-    atk_r, atk_c = new_r + action.adr, new_c + action.adc
-    if not (0 <= atk_r < 8 and 0 <= atk_c < 8):
-        return False
-    target = layout.pos_to_chess.get(8 * atk_r + atk_c)
+    target = layout.pos_to_chess.get(new_pos + 10 * action.adr + action.adc)
     if target is not None and (int_chess_id >= 4) != (target >= 4):
         return True
     else:
         return False
 
 
-def get_chess_details(layout: Layout, side: str, chess_id: ChessType) -> Optional[LayoutDetails]:
+def get_chess_details(layout: Layout, side: str, chess_id: ChessType, *, return_details: bool = True) -> \
+        Union[LayoutDetails, bool, None]:
     int_chess_id = _chess_to_int[side, chess_id]
     chess = layout.chess_details[int_chess_id]
     if chess is None:
         return None
-    int_pos, hp = chess
-    return {'side': side, 'chess_id': chess_id, 'hp': hp, 'pos': (int_pos // 8, int_pos % 8)}
+    elif not return_details:
+        return True
+    else:
+        int_pos, hp = chess
+        return {'side': side, 'chess_id': chess_id, 'hp': hp, 'pos': (int_pos // 10, int_pos % 10)}
+
+
+def get_chess_details_by_pos(layout: Layout, pos: tuple[int, int], *, return_details: bool = True) -> \
+        Union[LayoutDetails, bool, None]:
+    int_pos = 10 * pos[0] + pos[1]
+    int_chess_id = layout.pos_to_chess.get(int_pos)
+    if int_chess_id is None:
+        return None
+    elif not return_details:
+        return True
+    else:
+        side, chess_id = _int_to_chess[int_chess_id]
+        _, hp = layout.chess_details[int_chess_id]
+        return {'side': side, 'chess_id': chess_id, 'hp': hp, 'pos': pos}
 
 
 def get_valid_chess_id(layout: Layout, side: str, *, include_commander: bool = True) -> list[ChessType]:
@@ -284,48 +302,62 @@ def get_chess_profile(chess_id: ChessType) -> ChessProfile:
         return _protector_data
 
 
-def _hidden_get_chess_profile(int_chess_id: int) -> ChessProfile:
+class _HiddenChessProfile(TypedDict):  # 仅用于标注
+    atk: int
+    init_hp: int
+    move_range: int
+    int_atk_pos: list[int]
+
+
+_hidden_commander_data = {'atk': 0, 'init_hp': 1600, 'move_range': 0, 'int_atk_pos': []}
+_hidden_archer_data = {'atk': 250, 'init_hp': 700, 'move_range': 1,
+                       'int_atk_pos': [-20, -11, -10, -9, -2, -1, 1, 2, 9, 10, 11, 20]}
+_hidden_warrior_data = {'atk': 200, 'init_hp': 1000, 'move_range': 2, 'int_atk_pos': [1, -1, 10, -10]}
+_hidden_protector_data = {'atk': 150, 'init_hp': 1400, 'move_range': 1, 'int_atk_pos': [1, -1, 10, -10, 11, -11, 9, -9]}
+
+
+def _hidden_get_chess_profile(int_chess_id: int) -> _HiddenChessProfile:
     if (int_chess_id - ChessType.COMMANDER.value) % 4 == 0:
-        return _commander_data
+        return _hidden_commander_data
     elif (int_chess_id - ChessType.ARCHER.value) % 4 == 0:
-        return _archer_data
+        return _hidden_archer_data
     elif (int_chess_id - ChessType.WARRIOR.value) % 4 == 0:
-        return _warrior_data
+        return _hidden_warrior_data
     elif (int_chess_id - ChessType.PROTECTOR.value) % 4 == 0:
-        return _protector_data
+        return _hidden_protector_data
 
 
-def _hidden_get_valid_move(layout: Layout, int_chess_id: int) -> set[tuple[int, int]]:
-    # 返回一个列表,每个元素是可移动位置(row,col)的二元组
+def _hidden_get_valid_move(layout: Layout, int_chess_id: int) -> set[int]:
     int_pos, _ = layout.chess_details[int_chess_id]
-    pos_r, pos_c = int_pos // 8, int_pos % 8
 
-    position_set: set[tuple[int, int]] = set()
-    for delta_r, delta_c in [(-1, 0), (0, -1), (0, 0), (0, 1), (1, 0)]:
-        new_r, new_c = pos_r + delta_r, pos_c + delta_c
-        if delta_r == delta_c == 0:
-            position_set.add((new_r, new_c))
-        elif (0 <= new_r < 8 and 0 <= new_c < 8) and layout.pos_to_chess.get(8 * new_r + new_c) is None:
-            position_set.add((new_r, new_c))
+    position_set: set[int] = {int_pos}
+    for delta_int_pos in [-10, -1, 1, 10]:
+        new_pos = int_pos + delta_int_pos
+        if new_pos in _valid_int_pos and layout.pos_to_chess.get(new_pos) is None:
+            position_set.add(new_pos)
 
     if _hidden_get_chess_profile(int_chess_id)["move_range"] == 2:
-        for delta_r, delta_c in [(-2, 0), (-1, -1), (-1, 1), (0, -2), (0, 2), (1, -1), (1, 1), (2, 0)]:
-            new_r, new_c = pos_r + delta_r, pos_c + delta_c
-            if (0 <= new_r < 8 and 0 <= new_c < 8) and layout.pos_to_chess.get(8 * new_r + new_c) is None:
-                if delta_r and delta_c:
+        for delta_int_pos in [-20, -11, -9, -2, 2, 9, 11, 20]:
+            new_pos = int_pos + delta_int_pos
+            if new_pos in _valid_int_pos and layout.pos_to_chess.get(new_pos) is None:
+                if delta_int_pos % 2 == 1:
                     # 针对1,1型路
-                    if (pos_r + delta_r, pos_c) in position_set or (pos_r, pos_c + delta_c) in position_set:
-                        position_set.add((new_r, new_c))
+                    dr, dc = _int_to_delta_tuple[delta_int_pos]
+                    if int_pos + 10 * dr in position_set or int_pos + dc in position_set:
+                        position_set.add(new_pos)
                 else:
                     # 针对0,2型路
-                    if (pos_r + delta_r // 2, pos_c + delta_c // 2) in position_set:
-                        position_set.add((new_r, new_c))
+                    if int_pos + delta_int_pos // 2 in position_set:
+                        position_set.add(new_pos)
 
     return position_set
 
 
-def get_valid_move(layout: Layout, side: str, chess_id: ChessType) -> set[tuple[int, int]]:
-    return _hidden_get_valid_move(layout, _chess_to_int[side, chess_id])
+def get_valid_move(layout: Layout, side: str, chess_id: ChessType) -> list[tuple[int, int]]:
+    ret = []
+    for int_pos in _hidden_get_valid_move(layout, _chess_to_int[side, chess_id]):
+        ret.append((int_pos // 10, int_pos % 10))
+    return ret
 
 
 def get_valid_attack(layout: Layout, side: str, chess_id: ChessType) -> dict[ChessType, tuple[int, int]]:
@@ -334,53 +366,45 @@ def get_valid_attack(layout: Layout, side: str, chess_id: ChessType) -> dict[Che
     if chess is None:
         raise ValueError('Chess not alive!')
     int_pos = chess[0]
-    old_r, old_c = int_pos // 8, int_pos % 8
     mask = int_chess_id >= 4
-    atk_pos = _hidden_get_chess_profile(int_chess_id)['atk_pos']
+    atk_pos = _hidden_get_chess_profile(int_chess_id)['int_atk_pos']
     ret = {}
-    for adr, adc in atk_pos:
-        new_r, new_c = old_r + adr, old_c + adc
-        if 0 <= new_r < 8 and 0 <= new_c < 8:
-            target = layout.pos_to_chess.get(8 * new_r + new_c)
-            if target is not None and mask != (target >= 4):
-                ret[_int_to_chess[target][1]] = (new_r, new_c)
+    for atk_delta in atk_pos:
+        target_pos = int_pos + atk_delta
+        target = layout.pos_to_chess.get(target_pos)
+        if target is not None and mask != (target >= 4):
+            ret[_int_to_chess[target][1]] = (target_pos // 10, target_pos % 10)
     return ret
 
 
-def get_valid_actions(layout: Layout, side: str, *, chess_id: ChessType = None) -> \
-        list[Optional[Action]]:
+def get_valid_actions(layout: Layout, side: str, *, chess_id: ChessType = None) -> list[Optional[Action]]:
     # 基于棋局和指定行动方，返回列表,元素是某个棋子所有可能的行动Action
     if chess_id is None:
         list_actions = [None]
         for chess_id in [ChessType.WARRIOR, ChessType.ARCHER, ChessType.PROTECTOR]:
-            list_actions.extend(
-                _hidden_get_valid_actions(layout, _chess_to_int[side, chess_id], chess_id=chess_id)[1:])
+            list_actions.extend(_hidden_get_valid_actions(layout, _chess_to_int[side, chess_id], chess_id=chess_id)[1:])
         return list_actions
     else:
         return _hidden_get_valid_actions(layout, _chess_to_int[side, chess_id], chess_id=chess_id)
 
 
-def _hidden_get_valid_actions(layout: Layout, int_chess_id: int, *, chess_id: ChessType) -> \
-        list[Optional[Action]]:
+def _hidden_get_valid_actions(layout: Layout, int_chess_id: int, *, chess_id: ChessType) -> list[Optional[Action]]:
     chess = layout.chess_details[int_chess_id]
     if chess is None:
         return [None]
     int_pos = chess[0]
-    origin_r, origin_c = int_pos // 8, int_pos % 8
     mask: bool = int_chess_id >= 4
 
     result = [None]
-    atk_pos = _hidden_get_chess_profile(int_chess_id)['atk_pos']
-    for virtual_r, virtual_c in _hidden_get_valid_move(layout, int_chess_id):
-        mdr, mdc = virtual_r - origin_r, virtual_c - origin_c
-        if mdr or mdc:
-            result.append(Action(chess_id, mdr, mdc, 0, 0))
-        for atk_dr, atk_dc in atk_pos:
-            t_r, t_c = virtual_r + atk_dr, virtual_c + atk_dc
-            if 0 <= t_r < 8 and 0 <= t_c < 8:
-                target_chess_id = layout.pos_to_chess.get(8 * t_r + t_c)
-                if target_chess_id is not None and mask != (target_chess_id >= 4):
-                    result.append(Action(chess_id, mdr, mdc, atk_dr, atk_dc))
+    atk_pos = _hidden_get_chess_profile(int_chess_id)['int_atk_pos']
+    for virtual_pos in _hidden_get_valid_move(layout, int_chess_id):
+        delta_pos = virtual_pos - int_pos
+        if delta_pos:
+            result.append(Action(chess_id, *_int_to_delta_tuple[delta_pos], 0, 0))
+        for atk_delta_pos in atk_pos:
+            target_chess_id = layout.pos_to_chess.get(virtual_pos + atk_delta_pos)
+            if target_chess_id is not None and mask != (target_chess_id >= 4):
+                result.append(Action(chess_id, *_int_to_delta_tuple[delta_pos], *_int_to_delta_tuple[atk_delta_pos]))
     return result
 
 
@@ -394,7 +418,7 @@ def make_turn(layout: Layout, side: str, action: Optional[Action], *, turn_numbe
     def blood_regen():
         # 回血
         nonlocal virtual_layout
-        for pos_ in [27, 28, 35, 36]:
+        for pos_ in [33, 34, 43, 44]:
             current_chess_id = virtual_layout.pos_to_chess.get(pos_)
             if current_chess_id is not None:
                 hp_limit = _hidden_get_chess_profile(current_chess_id)['init_hp']
@@ -411,13 +435,12 @@ def make_turn(layout: Layout, side: str, action: Optional[Action], *, turn_numbe
         if chess is None:
             raise ValueError('Illegal action chess_id')
         # 移动
-        pos = chess[0]
-        new_pos = pos + 8 * action.mdr + action.mdc
+        new_pos = chess[0] + 10 * action.mdr + action.mdc
         virtual_layout.set_chess_new_pos(int_chess_id, new_pos)
         # 回血
         blood_regen()
         # 攻击
-        atk_delta = 8 * action.adr + action.adc
+        atk_delta = 10 * action.adr + action.adc
         if atk_delta:
             enemy_chess_id = virtual_layout.pos_to_chess.get(new_pos + atk_delta)
             atk = _hidden_get_chess_profile(int_chess_id)['atk']
@@ -429,7 +452,7 @@ def make_turn(layout: Layout, side: str, action: Optional[Action], *, turn_numbe
         # 只回血
         blood_regen()
 
-    west_home = virtual_layout.pos_to_chess.get(56)
+    west_home = virtual_layout.pos_to_chess.get(70)
     east_home = virtual_layout.pos_to_chess.get(7)
 
     new_points = calculate_scores(virtual_layout) if calculate_points == 'hard' else None
@@ -472,7 +495,7 @@ def make_turn(layout: Layout, side: str, action: Optional[Action], *, turn_numbe
 
 def is_terminal(layout: Layout) -> Optional[str]:
     # 基于棋盘布局判断游戏是否终止。终止返回胜方W或E，不终止返回None
-    west_home = layout.pos_to_chess.get(56)
+    west_home = layout.pos_to_chess.get(70)
     east_home = layout.pos_to_chess.get(7)
     if west_home is None:
         return 'E'
@@ -484,22 +507,20 @@ def is_terminal(layout: Layout) -> Optional[str]:
 
 def calculate_scores(layout: Layout) -> dict[str, tuple[int, int]]:
     # 基于棋盘返回计算分数
-    west_home_score, east_home_score = 0, 0
-    west_total_score, east_total_score = 0, 0
-    w_side_id = _chess_to_int['W', ChessType.COMMANDER] // 4
-    for int_chess_id, chess in enumerate(layout.chess_details):
-        if chess is not None and chess[1] > 0:
-            if int_chess_id % 4 == 0:
-                if int_chess_id // 4 == w_side_id:
-                    west_home_score = chess[1]
-                else:
-                    east_home_score = chess[1]
-            else:
-                if int_chess_id // 4 == w_side_id:
-                    west_total_score += chess[1]
-                else:
-                    east_total_score += chess[1]
-    return {'W': (west_home_score, west_total_score), 'E': (east_home_score, east_total_score)}
+    w_commander_id = _chess_to_int['W', ChessType.COMMANDER]
+    e_commander_id = 4 - w_commander_id
+
+    def compute_helper(commander_id):
+        home_score, total_score = 0, 0
+        commander = layout.chess_details[commander_id]
+        if commander is not None and commander[1] > 0:
+            home_score = commander[1]
+        for chess in layout.chess_details[commander_id + 1:commander_id + 4]:
+            if chess is not None and chess[1] > 0:
+                total_score += chess[1]
+        return home_score, total_score
+
+    return {'W': compute_helper(w_commander_id), 'E': compute_helper(e_commander_id)}
 
 
 def who_win(layout: Layout) -> str:
