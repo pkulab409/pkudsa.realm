@@ -7,7 +7,7 @@
 # https://github.com/pkulab409/pkudsa.realm
 #
 # 特别感谢zhes2Hen和Renko6626在编写上做出的贡献
-import api
+from api.get import enemy_last_round_ops as _enemy_last_round_ops
 from enum import Enum
 from collections import namedtuple
 from typing import Optional, TypedDict, Generator, Union
@@ -106,23 +106,25 @@ class Board:
         chess_details: list[Optional[tuple[int, int]]] = [None for _ in range(8)]
         for bot in my_bots:
             int_pos = 10 * bot.row + bot.col
-            hp = bot.hp
+            hp = int(bot.hp)
             int_chess_id = _chess_to_int[self.my_side, _tencent_id[bot.type_id]]
             pos_to_chess[int_pos] = int_chess_id
             chess_details[int_chess_id] = (int_pos, hp)
-            my_hp_sum += bot.hp
+            my_hp_sum += hp
         for bot in enemy_bots:
             int_pos = 10 * bot.row + bot.col
-            hp = bot.hp
+            hp = int(bot.hp)
             int_chess_id = _chess_to_int[enemy_side, _tencent_id[bot.type_id]]
             pos_to_chess[int_pos] = int_chess_id
             chess_details[int_chess_id] = (int_pos, hp)
-            enemy_hp_sum += bot.hp
+            enemy_hp_sum += hp
         self.layout: Layout = Layout(pos_to_chess, chess_details)
 
+        my_home_score = int(context.me.get_bots(name=100)[0].hp)
+        enemy_home_score = int(context.enemy.get_bots(name=100)[0].hp)
         self.point: dict[str, tuple[int, int]] = {
-            self.my_side: (context.me.get_bots(name=100)[0].hp, my_hp_sum),
-            enemy_side: (context.enemy.get_bots(name=100)[0].hp, enemy_hp_sum)
+            self.my_side: (my_home_score, my_hp_sum - my_home_score),
+            enemy_side: (enemy_home_score, enemy_hp_sum - enemy_home_score)
         }
         self.chess_profile: dict[ChessType, tuple[int, int]] = {ChessType.COMMANDER: (0, 1600),
                                                                 ChessType.WARRIOR: (200, 1000),
@@ -142,7 +144,7 @@ def api_decorator(func):
         if my_id not in _all_players_storage:
             _all_players_storage[my_id] = {}
         if context.round > 1:
-            enemy_actions_list = api.get.enemy_last_round_ops()
+            enemy_actions_list = _enemy_last_round_ops()
             if enemy_actions_list:
                 enemy_action = enemy_actions_list[0]
                 enemy_id = _tencent_id[enemy_action.bot.type_id]
