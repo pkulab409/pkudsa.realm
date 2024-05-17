@@ -79,7 +79,7 @@ Action对象的属性：
 - chess_id：为士兵种类标识，如ChessType.ARCHER
 - mdr, mdc分别表示移动目的地相对于当前位置的水平坐标偏移值(move delta row) 和垂直坐标偏移值(move delta column)
     - 规定向右/向下为正，向左/向上为负（+-）
-    - 例如: mdr=1, mdc=-2 表示向右移动1格，向上移动2格
+    - 例如: mdr=1, mdc=-2 表示向下移动1格，向左移动2格
 - adr, adc表示攻击目的地相对于当前位置的坐标偏移值（+-），用法同上，**注意**：此偏移值相对于移动后的新位置
     - adr, adc均设置为0时表示不攻击
 - mdr, mdc, adr, adc均设为0时表示不行动。在chess_id士兵存活时该Action对象和None等价，在下文函数中也不会有区别。**下文函数中用None表示不移动**（这是因为chess_id设为不同棋子时Action值不同但均代表不行动，这会导致冗杂）
